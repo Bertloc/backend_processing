@@ -1,40 +1,54 @@
 from flask import Blueprint, request, jsonify
 import pandas as pd
+import uuid
 
 api = Blueprint('api', __name__)
+data_store = {}  # Almacén temporal para clientes y sus datos procesados
 
 @api.route('/upload', methods=['POST'])
 def process_file():
     try:
-        # Recibir el archivo subido
         file = request.files['file']
         data = pd.read_excel(file)
 
-        # Procesar los datos usando la columna correcta
-        summary = data.groupby('Estatus Pedido')['Cantida Pedido'].sum()
+        # Validación de columnas requeridas
+        required_columns = ['Solicitante', 'Nombre Solicitante']
+        if not all(column in data.columns for column in required_columns):
+            return jsonify({"error": f"El archivo debe contener las columnas: {required_columns}"}), 400
 
-        # Convertir el resultado a JSON
-        result = summary.reset_index().to_dict(orient='records')
+        # Validación de datos vacíos
+        if data.empty:
+            return jsonify({"error": "El archivo está vacío o no tiene datos válidos."}), 400
 
-        return jsonify(result), 200
+        # Extraer clientes únicos y almacenar con Solicitate como clave (int)
+        unique_clients = data[required_columns].drop_duplicates().to_dict(orient='records')
+        data_store['clientes'] = {int(client['Solicitante']): client for client in unique_clients}
+
+        print("Clientes almacenados:", data_store['clientes'])
+        return jsonify({"clientes": unique_clients}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @api.route('/compliance-summary', methods=['POST'])
 def compliance_summary():
     try:
-        # Recibir el archivo subido
         file = request.files['file']
+        client_id = request.form.get('client_id')
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
+
         data = pd.read_excel(file)
 
-        # Filtrar y procesar datos para el gráfico "Cumplimiento General"
+        # Validación de columnas requeridas
+        required_columns = ['Estatus Pedido', 'Cantida Pedido']
+        if not all(column in data.columns for column in required_columns):
+            return jsonify({"error": f"El archivo debe contener las columnas: {required_columns}"}), 400
+
         delivered = data[data['Estatus Pedido'] == 'Despachado']['Cantida Pedido'].sum()
         pending = data[data['Estatus Pedido'] == 'Programado']['Cantida Pedido'].sum()
         confirmed = data[data['Estatus Pedido'] == 'Confirmado']['Cantida Pedido'].sum()
         unconfirmed = data[data['Estatus Pedido'] == 'No confirmado']['Cantida Pedido'].sum()
 
-        # Crear un resumen
         result = {
             "Despachado": delivered,
             "Programado": pending,
@@ -42,10 +56,19 @@ def compliance_summary():
             "No confirmado": unconfirmed
         }
 
+        data_store[int(client_id)] = result
         return jsonify(result), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@api.route('/api/get-client-data/<int:client_id>', methods=['GET'])
+def get_client_data(client_id):
+    try:
+        if client_id not in data_store['clientes']:
+            return jsonify({"error": "Cliente no encontrado"}), 404
+        return jsonify(data_store['clientes'][client_id]), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @api.route('/api/daily-trend', methods=['POST'])
 def daily_trend():

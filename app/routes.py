@@ -34,20 +34,23 @@ def compliance_summary():
     try:
         file = request.files['file']
         client_id = request.form.get('client_id')
+        
         if not client_id:
             return jsonify({"error": "El client_id es requerido"}), 400
 
         data = pd.read_excel(file)
 
-        # Validación de columnas requeridas
-        required_columns = ['Estatus Pedido', 'Cantida Pedido']
-        if not all(column in data.columns for column in required_columns):
-            return jsonify({"error": f"El archivo debe contener las columnas: {required_columns}"}), 400
+        # Convertir a int y filtrar por cliente
+        client_id = int(client_id)
+        filtered_data = data[data['Solicitante'] == client_id]
 
-        delivered = data[data['Estatus Pedido'] == 'Despachado']['Cantida Pedido'].sum()
-        pending = data[data['Estatus Pedido'] == 'Programado']['Cantida Pedido'].sum()
-        confirmed = data[data['Estatus Pedido'] == 'Confirmado']['Cantida Pedido'].sum()
-        unconfirmed = data[data['Estatus Pedido'] == 'No confirmado']['Cantida Pedido'].sum()
+        if filtered_data.empty:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
+
+        delivered = filtered_data[filtered_data['Estatus Pedido'] == 'Despachado']['Cantida Pedido'].sum()
+        pending = filtered_data[filtered_data['Estatus Pedido'] == 'Programado']['Cantida Pedido'].sum()
+        confirmed = filtered_data[filtered_data['Estatus Pedido'] == 'Confirmado']['Cantida Pedido'].sum()
+        unconfirmed = filtered_data[filtered_data['Estatus Pedido'] == 'No confirmado']['Cantida Pedido'].sum()
 
         result = {
             "Despachado": delivered,
@@ -56,10 +59,10 @@ def compliance_summary():
             "No confirmado": unconfirmed
         }
 
-        data_store[int(client_id)] = result
         return jsonify(result), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @api.route('/api/get-client-data/<int:client_id>', methods=['GET'])
 def get_client_data(client_id):

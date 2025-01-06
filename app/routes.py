@@ -40,13 +40,14 @@ def compliance_summary():
 
         data = pd.read_excel(file)
 
-        # Convertir a int y filtrar por cliente
+        # ✅ Convertir a int y crear una copia explícita al filtrar
         client_id = int(client_id)
-        filtered_data = data[data['Solicitante'] == client_id]
+        filtered_data = data[data['Solicitante'] == client_id].copy()  
 
         if filtered_data.empty:
             return jsonify({"error": "No hay datos para este cliente"}), 404
 
+        # ✅ No es necesario cambiar más, ya que la copia fue creada
         delivered = filtered_data[filtered_data['Estatus Pedido'] == 'Despachado']['Cantida Pedido'].sum()
         pending = filtered_data[filtered_data['Estatus Pedido'] == 'Programado']['Cantida Pedido'].sum()
         confirmed = filtered_data[filtered_data['Estatus Pedido'] == 'Confirmado']['Cantida Pedido'].sum()
@@ -64,6 +65,7 @@ def compliance_summary():
         return jsonify({"error": str(e)}), 500
 
 
+
 @api.route('/api/get-client-data/<int:client_id>', methods=['GET'])
 def get_client_data(client_id):
     try:
@@ -76,65 +78,121 @@ def get_client_data(client_id):
 @api.route('/api/daily-trend', methods=['POST'])
 def daily_trend():
     try:
-        # Recibir el archivo subido
         file = request.files['file']
+        client_id = request.form.get('client_id')
+        
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
+
         data = pd.read_excel(file)
 
-        # Renombrar columnas si tienen nombres diferentes
-        data.rename(columns={
+        # ✅ Convertir a int y crear una copia explícita al filtrar
+        client_id = int(client_id)
+        filtered_data = data[data['Solicitante'] == client_id].copy()
+
+        if filtered_data.empty:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
+
+        # ✅ Modificar columnas usando .loc para evitar advertencias
+        filtered_data.rename(columns={
+            'Fecha Entrega': 'Fecha Entrega',
+            'Cantidad entrega': 'Cantidad entrega'
+        }, inplace=True)
+
+        # ✅ Evitar SettingWithCopyWarning usando .loc
+        filtered_data.loc[:, 'Fecha Entrega'] = pd.to_datetime(filtered_data['Fecha Entrega'], errors='coerce')
+
+        # Agrupar los datos por Fecha Entrega
+        summary = filtered_data.groupby('Fecha Entrega')['Cantidad entrega'].sum().reset_index()
+
+        # Convertir el resultado a JSON
+        result = summary.to_dict(orient='records')
+
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api.route('/api/monthly-product-allocation', methods=['POST'])
+def monthly_product_allocation():
+    try:
+        file = request.files['file']
+        client_id = request.form.get('client_id')
+        
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
+
+        data = pd.read_excel(file)
+
+        # ✅ Convertir a int y crear una copia explícita al filtrar
+        client_id = int(client_id)
+        filtered_data = data[data['Solicitante'] == client_id].copy()
+
+        if filtered_data.empty:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
+
+        # ✅ Modificar columnas con .loc para evitar advertencias
+        filtered_data.rename(columns={
+            'Fecha Creación': 'Fecha Creación',
+            'Texto breve de material': 'Texto Breve Material',
+            'Cantida Pedido': 'Cantida Pedido'
+        }, inplace=True)
+
+        # ✅ Evitar SettingWithCopyWarning usando .loc
+        filtered_data.loc[:, 'Fecha Creación'] = pd.to_datetime(filtered_data['Fecha Creación'], errors='coerce')
+        filtered_data.loc[:, 'Mes'] = filtered_data['Fecha Creación'].dt.to_period('M').astype(str)
+
+        # Agrupar los datos por Mes y Texto Breve Material
+        summary = filtered_data.groupby(['Mes', 'Texto Breve Material'])['Cantida Pedido'].sum().reset_index()
+
+        # Convertir los datos al formato JSON
+        result = summary.to_dict(orient='records')
+
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@api.route('/api/report-delivery-trends', methods=['POST'])
+def report_delivery_trends():
+    try:
+        # Recibir el archivo subido y el client_id
+        file = request.files['file']
+        client_id = request.form.get('client_id')
+        
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
+
+        # Leer el archivo y convertir el client_id a entero
+        data = pd.read_excel(file)
+        client_id = int(client_id)
+
+        # ✅ Crear una copia explícita al filtrar
+        filtered_data = data[data['Solicitante'] == client_id].copy()
+
+        if filtered_data.empty:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
+
+        # ✅ Modificar columnas usando .loc para evitar advertencias
+        filtered_data.rename(columns={
             'Fecha Entrega': 'Fecha Entrega',
             'Cantidad entrega': 'Cantidad entrega'
         }, inplace=True)
 
         # Verificar si las columnas requeridas existen
         required_columns = ['Fecha Entrega', 'Cantidad entrega']
-        if not all(column in data.columns for column in required_columns):
+        if not all(column in filtered_data.columns for column in required_columns):
             return jsonify({
                 "error": f"El archivo debe contener las columnas: {required_columns}"
             }), 400
+
+        # ✅ Evitar advertencias al modificar columnas con .loc
+        filtered_data.loc[:, 'Fecha Entrega'] = pd.to_datetime(filtered_data['Fecha Entrega'], errors='coerce')
 
         # Procesar los datos agrupados por Fecha Entrega
-        summary = data.groupby('Fecha Entrega')['Cantidad entrega'].sum()
+        summary = filtered_data.groupby('Fecha Entrega')['Cantidad entrega'].sum().reset_index()
 
         # Convertir el resultado a JSON
-        result = summary.reset_index().to_dict(orient='records')
-
-        return jsonify(result), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@api.route('/api/monthly-product-allocation', methods=['POST'])
-def monthly_product_allocation():
-    try:
-        # Recibir el archivo subido
-        file = request.files['file']
-        data = pd.read_excel(file)
-
-        # Renombrar columnas para alinearlas con los nombres esperados
-        data.rename(columns={
-            'Fecha Creación': 'Fecha Creación',
-            'Texto breve de material': 'Texto Breve Material',
-            'Cantida Pedido': 'Cantida Pedido'
-        }, inplace=True)
-
-        # Verificar si las columnas requeridas existen
-        required_columns = ['Fecha Creación', 'Texto Breve Material', 'Cantida Pedido']
-        if not all(column in data.columns for column in required_columns):
-            return jsonify({
-                "error": f"El archivo debe contener las columnas: {required_columns}"
-            }), 400
-
-        # Convertir la columna de fecha a formato datetime
-        data['Fecha Creación'] = pd.to_datetime(data['Fecha Creación'], errors='coerce')
-
-        # Crear una nueva columna para el mes y año
-        data['Mes'] = data['Fecha Creación'].dt.to_period('M').astype(str)
-
-        # Agrupar los datos por Mes y Texto Breve Material, y sumar Cantida Pedido
-        summary = data.groupby(['Mes', 'Texto Breve Material'])['Cantida Pedido'].sum().reset_index()
-
-        # Convertir los datos al formato JSON
         result = summary.to_dict(orient='records')
 
         return jsonify(result), 200
@@ -142,46 +200,29 @@ def monthly_product_allocation():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@api.route('/api/report-delivery-trends', methods=['POST'])
-def report_delivery_trends():
-    try:
-        # Recibir el archivo subido
-        file = request.files['file']
-        data = pd.read_excel(file)
-
-        # Renombrar columnas si tienen nombres diferentes
-        data.rename(columns={
-            'Fecha Entrega': 'Fecha Entrega',
-            'Cantidad entrega': 'Cantidad entrega'
-        }, inplace=True)
-
-        # Verificar si las columnas requeridas existen
-        required_columns = ['Fecha Entrega', 'Cantidad entrega']
-        if not all(column in data.columns for column in required_columns):
-            return jsonify({
-                "error": f"El archivo debe contener las columnas: {required_columns}"
-            }), 400
-
-        # Procesar los datos agrupados por Fecha Entrega
-        summary = data.groupby('Fecha Entrega')['Cantidad entrega'].sum()
-
-        # Convertir el resultado a JSON
-        result = summary.reset_index().to_dict(orient='records')
-
-        return jsonify(result), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 @api.route('/api/delivery-report', methods=['POST'])
 def delivery_report():
     try:
-        # Recibir el archivo subido
+        # Recibir el archivo subido y el client_id
         file = request.files['file']
-        data = pd.read_excel(file)
+        client_id = request.form.get('client_id')
+        
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
 
-        # Renombrar columnas si tienen nombres diferentes
-        data.rename(columns={
+        # Leer el archivo y convertir el client_id a entero
+        data = pd.read_excel(file)
+        client_id = int(client_id)
+
+        # ✅ Crear una copia explícita para evitar el warning
+        filtered_data = data[data['Solicitante'] == client_id].copy()
+
+        if filtered_data.empty:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
+
+        # ✅ Modificar columnas usando .loc para evitar advertencias
+        filtered_data.rename(columns={
             'Fecha Entrega': 'Fecha Entrega',
             'Cantidad entrega': 'Cantidad entrega',
             'Material': 'Material'
@@ -189,13 +230,16 @@ def delivery_report():
 
         # Verificar si las columnas requeridas existen
         required_columns = ['Fecha Entrega', 'Material', 'Cantidad entrega']
-        if not all(column in data.columns for column in required_columns):
+        if not all(column in filtered_data.columns for column in required_columns):
             return jsonify({
                 "error": f"El archivo debe contener las columnas: {required_columns}"
             }), 400
 
+        # ✅ Evitar advertencias modificando con .loc
+        filtered_data.loc[:, 'Fecha Entrega'] = pd.to_datetime(filtered_data['Fecha Entrega'], errors='coerce')
+
         # Agrupar los datos por Fecha Entrega y Material
-        summary = data.groupby(['Fecha Entrega', 'Material'])['Cantidad entrega'].sum().reset_index()
+        summary = filtered_data.groupby(['Fecha Entrega', 'Material'])['Cantidad entrega'].sum().reset_index()
 
         # Convertir los datos al formato JSON
         result = summary.to_dict(orient='records')
@@ -205,28 +249,45 @@ def delivery_report():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @api.route('/api/distribution-by-center', methods=['POST'])
 def distribution_by_center():
     try:
-        # Recibir el archivo subido
+        # Recibir el archivo subido y el client_id
         file = request.files['file']
-        data = pd.read_excel(file)
+        client_id = request.form.get('client_id')
+        
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
 
-        # Renombrar columnas si tienen nombres diferentes
-        data.rename(columns={
+        # Leer el archivo y convertir el client_id a entero
+        data = pd.read_excel(file)
+        client_id = int(client_id)
+
+        # ✅ Crear una copia explícita al filtrar
+        filtered_data = data[data['Solicitante'] == client_id].copy()
+
+        if filtered_data.empty:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
+
+        # ✅ Modificar columnas usando .loc para evitar advertencias
+        filtered_data.rename(columns={
             'Centro': 'Centro',
             'Cantidad entrega': 'Cantidad entrega'
         }, inplace=True)
 
         # Verificar si las columnas requeridas existen
         required_columns = ['Centro', 'Cantidad entrega']
-        if not all(column in data.columns for column in required_columns):
+        if not all(column in filtered_data.columns for column in required_columns):
             return jsonify({
                 "error": f"El archivo debe contener las columnas: {required_columns}"
             }), 400
 
+        # ✅ Evitar advertencias modificando con .loc
+        filtered_data.loc[:, 'Cantidad entrega'] = filtered_data['Cantidad entrega']
+
         # Agrupar los datos por Centro
-        summary = data.groupby('Centro')['Cantidad entrega'].sum().reset_index()
+        summary = filtered_data.groupby('Centro')['Cantidad entrega'].sum().reset_index()
 
         # Convertir los datos al formato JSON
         result = summary.to_dict(orient='records')
@@ -236,15 +297,29 @@ def distribution_by_center():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @api.route('/api/daily-summary', methods=['POST'])
 def daily_summary():
     try:
-        # Recibir el archivo subido
+        # Recibir el archivo subido y el client_id
         file = request.files['file']
-        data = pd.read_excel(file)
+        client_id = request.form.get('client_id')
+        
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
 
-        # Renombrar columnas si tienen nombres diferentes
-        data.rename(columns={
+        # Leer el archivo y convertir el client_id a entero
+        data = pd.read_excel(file)
+        client_id = int(client_id)
+
+        # ✅ Crear una copia explícita al filtrar
+        filtered_data = data[data['Solicitante'] == client_id].copy()
+
+        if filtered_data.empty:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
+
+        # ✅ Modificar columnas usando .loc para evitar advertencias
+        filtered_data.rename(columns={
             'Fecha Entrega': 'Fecha Entrega',
             'Cantida Pedido': 'Cantida Pedido',
             'Cantidad entrega': 'Cantidad entrega'
@@ -252,19 +327,22 @@ def daily_summary():
 
         # Verificar si las columnas requeridas existen
         required_columns = ['Fecha Entrega', 'Cantida Pedido', 'Cantidad entrega']
-        if not all(column in data.columns for column in required_columns):
+        if not all(column in filtered_data.columns for column in required_columns):
             return jsonify({
                 "error": f"El archivo debe contener las columnas: {required_columns}"
             }), 400
 
+        # ✅ Evitar advertencias modificando con .loc
+        filtered_data.loc[:, 'Fecha Entrega'] = pd.to_datetime(filtered_data['Fecha Entrega'], errors='coerce')
+
         # Agrupar los datos por Fecha Entrega
-        grouped = data.groupby('Fecha Entrega').agg({
+        grouped = filtered_data.groupby('Fecha Entrega').agg({
             'Cantida Pedido': 'sum',
             'Cantidad entrega': 'sum'
         }).reset_index()
 
-        # Calcular el % de aprovechamiento
-        grouped['% Aprovechamiento'] = (grouped['Cantidad entrega'] / grouped['Cantida Pedido'] * 100).round(2)
+        # ✅ Calcular el % de aprovechamiento sin advertencias
+        grouped.loc[:, '% Aprovechamiento'] = (grouped['Cantidad entrega'] / grouped['Cantida Pedido'] * 100).round(2)
 
         # Convertir los datos al formato JSON
         result = grouped.to_dict(orient='records')
@@ -274,15 +352,30 @@ def daily_summary():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
 @api.route('/api/pending-orders', methods=['POST'])
 def pending_orders():
     try:
-        # Recibir el archivo subido
+        # Recibir el archivo subido y el client_id
         file = request.files['file']
-        data = pd.read_excel(file)
+        client_id = request.form.get('client_id')
+        
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
 
-        # Renombrar columnas si tienen nombres diferentes
-        data.rename(columns={
+        # Leer el archivo y convertir el client_id a entero
+        data = pd.read_excel(file)
+        client_id = int(client_id)
+
+        # ✅ Crear una copia explícita al filtrar
+        filtered_data = data[data['Solicitante'] == client_id].copy()
+
+        if filtered_data.empty:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
+
+        # ✅ Modificar columnas usando .loc para evitar advertencias
+        filtered_data.rename(columns={
             'Estatus Pedido': 'Estatus Pedido',
             'Material': 'Material',
             'Cantidad confirmada': 'Cantidad confirmada'
@@ -290,63 +383,96 @@ def pending_orders():
 
         # Verificar si las columnas requeridas existen
         required_columns = ['Estatus Pedido', 'Material', 'Cantidad confirmada']
-        if not all(column in data.columns for column in required_columns):
+        if not all(column in filtered_data.columns for column in required_columns):
             return jsonify({
                 "error": f"El archivo debe contener las columnas: {required_columns}"
             }), 400
 
-        # Filtrar pedidos donde Estatus Pedido sea "Pendiente"
-        pending_orders = data[data['Estatus Pedido'] == 'Pendiente']
+        # ✅ Aplicar filtro usando .loc para evitar advertencias
+        pending_orders = filtered_data.loc[filtered_data['Estatus Pedido'] == 'Pendiente']
 
-        # Seleccionar las columnas relevantes
-        result = pending_orders[['Material', 'Cantidad confirmada']].to_dict(orient='records')
+        # ✅ Selección segura usando .loc
+        result = pending_orders.loc[:, ['Material', 'Cantidad confirmada']].to_dict(orient='records')
 
         return jsonify(result), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
 
 @api.route('/api/product-category-summary', methods=['POST'])
 def product_category_summary():
     try:
-        # Recibir el archivo subido
+        # Recibir el archivo subido y el client_id
         file = request.files['file']
-        data = pd.read_excel(file)
+        client_id = request.form.get('client_id')
+        
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
 
-        # Verificar si las columnas requeridas existen
+        # Leer el archivo y convertir el client_id a entero
+        data = pd.read_excel(file)
+        client_id = int(client_id)
+
+        # ✅ Crear una copia explícita al filtrar
+        filtered_data = data[data['Solicitante'] == client_id].copy()
+
+        if filtered_data.empty:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
+
+        # ✅ Validar columnas con una lista explícita
         required_columns = ['Texto breve de material', 'Cantida Pedido']
-        if not all(column in data.columns for column in required_columns):
+        if not all(column in filtered_data.columns for column in required_columns):
             return jsonify({
                 "error": f"El archivo debe contener las columnas: {required_columns}"
             }), 400
 
-        # Procesar los datos agrupados por categoría de producto
-        summary = data.groupby('Texto breve de material')['Cantida Pedido'].sum()
+        # ✅ Procesar los datos de manera segura
+        summary = (
+            filtered_data
+            .groupby('Texto breve de material', as_index=False)['Cantida Pedido']
+            .sum()
+        )
 
-        # Convertir el resultado a JSON
-        result = summary.reset_index().to_dict(orient='records')
+        # ✅ Convertir a formato JSON
+        result = summary.to_dict(orient='records')
 
         return jsonify(result), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @api.route('/api/daily-delivery-report', methods=['POST'])
 def daily_delivery_report():
     try:
-        # Recibir el archivo subido
+        # Recibir el archivo subido y el client_id
         file = request.files['file']
+        client_id = request.form.get('client_id')
+        
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
+
+        # Leer el archivo y convertir el client_id a entero
         data = pd.read_excel(file)
+        client_id = int(client_id)
+
+        # Filtrar los datos por cliente
+        filtered_data = data[data['Solicitante'] == client_id]
+
+        if filtered_data.empty:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
 
         # Verificar si las columnas requeridas existen
         required_columns = ['Fecha Entrega', 'Texto breve de material', 'Cantidad entrega', 'Nº de transporte']
-        if not all(column in data.columns for column in required_columns):
+        if not all(column in filtered_data.columns for column in required_columns):
             return jsonify({
                 "error": f"El archivo debe contener las columnas: {required_columns}"
             }), 400
 
         # Procesar los datos agrupados por fecha y producto
-        summary = data.groupby(['Fecha Entrega', 'Texto breve de material']).agg({
+        summary = filtered_data.groupby(['Fecha Entrega', 'Texto breve de material']).agg({
             'Cantidad entrega': 'sum',
             'Nº de transporte': 'count'
         }).reset_index()

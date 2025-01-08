@@ -1,11 +1,13 @@
 from flask import Blueprint, request, jsonify
+from flask_cors import CORS
 import pandas as pd
 import uuid
 
 api = Blueprint('api', __name__)
-data_store = {}  # Almacén temporal para clientes y sus datos procesados
-# Almacén temporal para los enlaces generados (por ahora sin base de datos)
+CORS(api)  # ✅ Agregar CORS al blueprint directamente
+data_store = {}
 published_dashboards = {}
+
 
 @api.route('/api/health', methods=['GET'])
 def health_check():

@@ -7,6 +7,12 @@ data_store = {}  # Almacén temporal para clientes y sus datos procesados
 # Almacén temporal para los enlaces generados (por ahora sin base de datos)
 published_dashboards = {}
 
+@api.route('/api/health', methods=['GET'])
+def health_check():
+    """Endpoint para verificar el estado del backend"""
+    return jsonify({"status": "ok"}), 200
+
+
 @api.route('/api/publish-dashboards', methods=['POST'])
 def publish_dashboards():
     try:

@@ -4,6 +4,35 @@ import uuid
 
 api = Blueprint('api', __name__)
 data_store = {}  # Almacén temporal para clientes y sus datos procesados
+# Almacén temporal para los enlaces generados (por ahora sin base de datos)
+published_dashboards = {}
+
+@api.route('/api/publish-dashboards', methods=['POST'])
+def publish_dashboards():
+    try:
+        # Recibir el archivo y extraer todos los clientes del frontend
+        clients_data = request.form.get('clients')  # Espera un JSON string con los clientes
+        if not clients_data:
+            return jsonify({"error": "La lista de clientes es requerida."}), 400
+        
+        clients = json.loads(clients_data)  # Convertir el JSON string a lista
+
+        # Crear un diccionario para almacenar múltiples enlaces generados
+        generated_links = {}
+
+        for client_id in clients:
+            dashboard_uuid = str(uuid.uuid4())
+            generated_links[client_id] = f"http://localhost:3000/dashboard/{dashboard_uuid}"
+            published_dashboards[client_id] = generated_links[client_id]
+
+        return jsonify({
+            "message": "Dashboards publicados exitosamente.",
+            "links": generated_links
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @api.route('/upload', methods=['POST'])
 def process_file():

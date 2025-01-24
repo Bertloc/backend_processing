@@ -286,30 +286,40 @@ def daily_summary():
         file = request.files['file']
         data = pd.read_excel(file)
 
-        # Renombrar columnas si tienen nombres diferentes
+        # Renombrar columnas para garantizar consistencia
         data.rename(columns={
             'Fecha Entrega': 'Fecha Entrega',
             'Cantida Pedido': 'Cantida Pedido',
             'Cantidad entrega': 'Cantidad entrega'
         }, inplace=True)
 
-        # Verificar si las columnas requeridas existen
+        # Validación de columnas requeridas
         required_columns = ['Fecha Entrega', 'Cantida Pedido', 'Cantidad entrega']
         if not all(column in data.columns for column in required_columns):
             return jsonify({
                 "error": f"El archivo debe contener las columnas: {required_columns}"
             }), 400
 
-        # Agrupar los datos por Fecha Entrega
+        # Manejo de valores nulos
+        data['Cantida Pedido'] = pd.to_numeric(data['Cantida Pedido'], errors='coerce').fillna(0)
+        data['Cantidad entrega'] = pd.to_numeric(data['Cantidad entrega'], errors='coerce').fillna(0)
+        data['Fecha Entrega'] = pd.to_datetime(data['Fecha Entrega'], errors='coerce')
+
+        # Eliminar filas con fechas inválidas
+        data = data.dropna(subset=['Fecha Entrega'])
+
+        # Agrupar datos por fecha
         grouped = data.groupby('Fecha Entrega').agg({
             'Cantida Pedido': 'sum',
             'Cantidad entrega': 'sum'
         }).reset_index()
 
         # Calcular el % de aprovechamiento
-        grouped['% Aprovechamiento'] = (grouped['Cantidad entrega'] / grouped['Cantida Pedido'] * 100).round(2)
+        grouped['% Aprovechamiento'] = (
+            (grouped['Cantidad entrega'] / grouped['Cantida Pedido']) * 100
+        ).round(2)
 
-        # Convertir los datos al formato JSON
+        # Convertir datos a formato JSON
         result = grouped.to_dict(orient='records')
 
         return jsonify(result), 200

@@ -123,30 +123,32 @@ def daily_trend():
             }), 400
 
         # Reemplazar valores nulos con valores predeterminados
-        data['Fecha Entrega'] = pd.to_datetime(
-            data['Fecha Entrega'], errors='coerce')  # Convertir a fechas
+        data['Fecha Entrega'] = pd.to_datetime(data['Fecha Entrega'], errors='coerce')  # Convertir a fechas
         data['Cantidad entrega'] = data['Cantidad entrega'].fillna(0)
 
         # Eliminar filas con fechas inválidas
         data = data.dropna(subset=['Fecha Entrega'])
 
         # Asegurarse de que 'Cantidad entrega' sea numérica
-        data['Cantidad entrega'] = pd.to_numeric(
-            data['Cantidad entrega'], errors='coerce').fillna(0)
+        data['Cantidad entrega'] = pd.to_numeric(data['Cantidad entrega'], errors='coerce').fillna(0)
 
         # Filtrar filas con cantidades negativas (si no son válidas)
         data = data[data['Cantidad entrega'] >= 0]
 
         # Procesar los datos agrupados por Fecha Entrega
-        summary = data.groupby('Fecha Entrega')['Cantidad entrega'].sum()
+        summary = data.groupby('Fecha Entrega')['Cantidad entrega'].sum().reset_index()
+
+        # Convertir la columna de fechas a formato ISO 8601
+        summary['Fecha Entrega'] = summary['Fecha Entrega'].dt.strftime('%Y-%m-%dT%H:%M:%S')
 
         # Convertir el resultado a JSON
-        result = summary.reset_index().to_dict(orient='records')
+        result = summary.to_dict(orient='records')
 
         return jsonify(result), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 @api.route('/api/monthly-product-allocation', methods=['POST'])
 def monthly_product_allocation():
     try:

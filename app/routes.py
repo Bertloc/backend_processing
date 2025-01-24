@@ -122,6 +122,21 @@ def daily_trend():
                 "error": f"El archivo debe contener las columnas: {required_columns}"
             }), 400
 
+        # Reemplazar valores nulos con valores predeterminados
+        data['Fecha Entrega'] = pd.to_datetime(
+            data['Fecha Entrega'], errors='coerce')  # Convertir a fechas
+        data['Cantidad entrega'] = data['Cantidad entrega'].fillna(0)
+
+        # Eliminar filas con fechas inválidas
+        data = data.dropna(subset=['Fecha Entrega'])
+
+        # Asegurarse de que 'Cantidad entrega' sea numérica
+        data['Cantidad entrega'] = pd.to_numeric(
+            data['Cantidad entrega'], errors='coerce').fillna(0)
+
+        # Filtrar filas con cantidades negativas (si no son válidas)
+        data = data[data['Cantidad entrega'] >= 0]
+
         # Procesar los datos agrupados por Fecha Entrega
         summary = data.groupby('Fecha Entrega')['Cantidad entrega'].sum()
 
@@ -132,7 +147,6 @@ def daily_trend():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 @api.route('/api/monthly-product-allocation', methods=['POST'])
 def monthly_product_allocation():
     try:

@@ -288,29 +288,29 @@ def daily_summary():
         file = request.files['file']
         data = pd.read_excel(file)
 
-        # Renombrar columnas para garantizar consistencia
+        # Renombrar columnas si tienen nombres diferentes
         data.rename(columns={
             'Fecha Entrega': 'Fecha Entrega',
             'Cantida Pedido': 'Cantida Pedido',
             'Cantidad entrega': 'Cantidad entrega'
         }, inplace=True)
 
-        # Validación de columnas requeridas
+        # Verificar si las columnas requeridas existen
         required_columns = ['Fecha Entrega', 'Cantida Pedido', 'Cantidad entrega']
         if not all(column in data.columns for column in required_columns):
             return jsonify({
                 "error": f"El archivo debe contener las columnas: {required_columns}"
             }), 400
 
-        # Manejo de valores nulos
+        # Reemplazar valores nulos con valores predeterminados
+        data['Fecha Entrega'] = pd.to_datetime(data['Fecha Entrega'], errors='coerce')
         data['Cantida Pedido'] = pd.to_numeric(data['Cantida Pedido'], errors='coerce').fillna(0)
         data['Cantidad entrega'] = pd.to_numeric(data['Cantidad entrega'], errors='coerce').fillna(0)
-        data['Fecha Entrega'] = pd.to_datetime(data['Fecha Entrega'], errors='coerce')
 
         # Eliminar filas con fechas inválidas
         data = data.dropna(subset=['Fecha Entrega'])
 
-        # Agrupar datos por fecha
+        # Agrupar los datos por Fecha Entrega
         grouped = data.groupby('Fecha Entrega').agg({
             'Cantida Pedido': 'sum',
             'Cantidad entrega': 'sum'
@@ -321,7 +321,10 @@ def daily_summary():
             (grouped['Cantidad entrega'] / grouped['Cantida Pedido']) * 100
         ).round(2)
 
-        # Convertir datos a formato JSON
+        # Formatear la columna de fechas en formato ISO 8601
+        grouped['Fecha Entrega'] = grouped['Fecha Entrega'].dt.strftime('%Y-%m-%dT%H:%M:%S')
+
+        # Convertir los datos al formato JSON
         result = grouped.to_dict(orient='records')
 
         return jsonify(result), 200

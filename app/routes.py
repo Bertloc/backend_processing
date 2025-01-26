@@ -207,11 +207,21 @@ def report_delivery_trends():
                 "error": f"El archivo debe contener las columnas: {required_columns}"
             }), 400
 
-        # Procesar los datos agrupados por Fecha Entrega
-        summary = data.groupby('Fecha Entrega')['Cantidad entrega'].sum()
+        # Reemplazar valores nulos con valores predeterminados
+        data['Fecha Entrega'] = pd.to_datetime(data['Fecha Entrega'], errors='coerce')  # Convertir a fechas
+        data['Cantidad entrega'] = pd.to_numeric(data['Cantidad entrega'], errors='coerce').fillna(0)
 
-            # Convertir el resultado a JSON
-        result = summary.reset_index().to_dict(orient='records')
+        # Eliminar filas con fechas inválidas
+        data = data.dropna(subset=['Fecha Entrega'])
+
+        # Procesar los datos agrupados por Fecha Entrega
+        summary = data.groupby('Fecha Entrega')['Cantidad entrega'].sum().reset_index()
+
+        # Convertir la columna de fechas a formato ISO 8601
+        summary['Fecha Entrega'] = summary['Fecha Entrega'].dt.strftime('%Y-%m-%dT%H:%M:%S')
+
+        # Convertir el resultado a JSON
+        result = summary.to_dict(orient='records')
 
         return jsonify(result), 200
 
@@ -405,6 +415,10 @@ def daily_delivery_report():
 
         # Eliminar filas con valores nulos en las columnas requeridas
         data = data.dropna(subset=required_columns)
+
+        # Reemplazar valores nulos en otras columnas
+        data['Cantidad entrega'] = data['Cantidad entrega'].fillna(0)
+        data['Nº de transporte'] = data['Nº de transporte'].fillna(0)
 
         # Procesar los datos agrupados por fecha y producto
         summary = data.groupby(['Fecha Entrega', 'Texto breve de material']).agg({

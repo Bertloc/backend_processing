@@ -403,6 +403,9 @@ def daily_delivery_report():
                 "error": f"El archivo debe contener las columnas: {required_columns}"
             }), 400
 
+        # Eliminar filas con valores nulos en las columnas requeridas
+        data = data.dropna(subset=required_columns)
+
         # Procesar los datos agrupados por fecha y producto
         summary = data.groupby(['Fecha Entrega', 'Texto breve de material']).agg({
             'Cantidad entrega': 'sum',
@@ -417,6 +420,9 @@ def daily_delivery_report():
             'Nº de transporte': 'Total Viajes'
         }, inplace=True)
 
+        # Convertir fechas a formato ISO para garantizar compatibilidad con Flutter
+        summary['Fecha'] = pd.to_datetime(summary['Fecha']).dt.strftime('%Y-%m-%d')
+
         # Convertir el resultado a JSON
         result = summary.to_dict(orient='records')
 
@@ -424,3 +430,4 @@ def daily_delivery_report():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+

@@ -388,7 +388,7 @@ def product_category_summary():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
+        
 @api.route('/api/daily-delivery-report', methods=['POST'])
 def daily_delivery_report():
     try:
@@ -430,4 +430,3 @@ def daily_delivery_report():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-

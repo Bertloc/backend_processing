@@ -12,6 +12,20 @@ data_store = {}  # Almacén temporal para clientes y sus datos procesados
 # Almacén temporal para los enlaces generados (por ahora sin base de datos)
 published_dashboards = {}
 
+# Endpoint para obtener el rol de un usuario por ID
+@api.route('/get-user-role', methods=['GET'])
+def get_user_role():
+    user_id = request.args.get('user_id')  # Obtener el ID del usuario desde la URL
+
+    # Buscar al usuario en la base de datos
+    user = User.query.filter_by(id=user_id).first()
+
+    if user:
+        return jsonify({"role": user.rol})
+    else:
+        return jsonify({"error": "Usuario no encontrado"}), 404
+
+
 @api.route('/login', methods=['POST'])
 def login():
     data = request.get_json()

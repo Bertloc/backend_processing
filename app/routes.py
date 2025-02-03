@@ -1,11 +1,55 @@
 from flask import Blueprint, request, jsonify
 import pandas as pd
 import uuid
+from app import db
+from app.models import User
+from flask_bcrypt import Bcrypt
+
+bcrypt = Bcrypt()  # Inicializar bcrypt
 
 api = Blueprint('api', __name__)
 data_store = {}  # Almacén temporal para clientes y sus datos procesados
 # Almacén temporal para los enlaces generados (por ahora sin base de datos)
 published_dashboards = {}
+
+@api.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get('username')
+    contraseña = data.get('contraseña')
+
+    # Buscar usuario en la base de datos
+    user = User.query.filter_by(username=username).first()
+
+    if user and user.contraseña == contraseña:
+        return jsonify({"mensaje": "Inicio de sesión exitoso", "usuario": user.username, "rol": user.rol}), 200
+    else:
+        return jsonify({"mensaje": "Usuario o contraseña incorrectos"}), 401
+
+@api.route('/register', methods=['POST'])
+def register():
+    data = request.get_json()
+
+    # Verificar si el usuario ya existe
+    existing_user = User.query.filter_by(username=data['username']).first()
+    if existing_user:
+        return jsonify({"error": "El usuario ya existe"}), 400
+
+
+    # Crear nuevo usuario
+    new_user = User(
+        username=data['username'],
+        correo=data['correo'],
+        contraseña = data.get('contraseña'),
+        rol='cliente'
+    )
+
+    # Guardar en la base de datos
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify({"mensaje": "Usuario registrado exitosamente"}), 201
+
 
 @api.route('/api/publish-dashboards', methods=['POST'])
 def publish_dashboards():

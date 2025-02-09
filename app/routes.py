@@ -571,3 +571,37 @@ def daily_delivery_report():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@api.route('/api/get-client-data/<solicitante>', methods=['GET'])
+def get_client_data(solicitante):
+    try:
+        # Consulta la base de datos para obtener los datos del cliente
+        pedidos = Pedido.query.filter_by(solicitante=solicitante).all()
+
+        if not pedidos:
+            return jsonify({'error': 'No se encontraron datos para este cliente'}), 404
+
+        # Convertir datos a formato JSON
+        data = []
+        for pedido in pedidos:
+            data.append({
+                'fecha_entrega': pedido.fecha_entrega.strftime('%Y-%m-%d') if pedido.fecha_entrega else None,
+                'fecha_creacion': pedido.fecha_creacion.strftime('%Y-%m-%d') if pedido.fecha_creacion else None,
+                'cantidad_entrega': pedido.cantidad_entrega,
+                'cantidad_pedido': pedido.cantidad_pedido,
+                'cantidad_confirmada': pedido.cantidad_confirmada,
+                'estatus_pedido': pedido.estatus_pedido,
+                'centro': pedido.centro,
+                'material': pedido.material,
+                'texto_breve_material': pedido.texto_breve_material,
+                'num_transporte': pedido.num_transporte,
+                'solicitante': pedido.solicitante,
+                'nombre_solicitante': pedido.nombre_solicitante
+            })
+
+        return jsonify(data), 200
+
+    except Exception as e:
+        print(f"❌ Error al obtener datos del cliente {solicitante}: {str(e)}")
+        return jsonify({'error': 'Error al obtener datos del cliente'}), 500

@@ -26,7 +26,7 @@ def create_app():
         "https://cefront.vercel.app",
         "http://localhost:3000",
     ]
-    CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS if not app.debug else "*"}}, supports_credentials=True)
+    CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS }}, supports_credentials=True)
 
     # Registrar rutas
     from app.routes import api

@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 import pandas as pd
 import uuid
 from app import db
-from app.models import User
+from app.models import User,Pedido
 from flask_bcrypt import Bcrypt
 
 bcrypt = Bcrypt()  # Inicializar bcrypt
@@ -11,6 +11,58 @@ api = Blueprint('api', __name__)
 data_store = {}  # Almacén temporal para clientes y sus datos procesados
 # Almacén temporal para los enlaces generados (por ahora sin base de datos)
 published_dashboards = {}
+
+@api.route('/api/publish-data', methods=['POST'])
+def publish_data():
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No se encontró el archivo'}), 400
+        
+        file = request.files['file']
+        df = pd.read_excel(file)
+        
+        for _, row in df.iterrows():
+            pedido = Pedido(
+                centro=row['Centro'],
+                desc_planta=row['Desc. Planta'],
+                solicitante=str(row['Solicitante']),
+                nombre_solicitante=row['Nombre Solicitante'],
+                destinatario_mcia=str(row['Destinatario mcía.']),
+                nombre_destinatario=row['Nombre Destinatario'],
+                fecha_creacion=pd.to_datetime(row['Fecha Creación']).date(),
+                pedido=str(row['Pedido']),
+                estatus_pedido=row['Estatus Pedido'],
+                entrega=str(row['Entrega']),
+                fecha_entrega=pd.to_datetime(row['Fecha Entrega']).date(),
+                material=row['Material'],
+                texto_breve_material=row['Texto breve material'],
+                cantidad_pedido=int(row['Cantidad Pedido']),
+                cantidad_confirmada=int(row['Cantidad confirmada']),
+                cantidad_entrega=int(row['Cantidad entrega']),
+                unidad_medida_base=row['Unidad medida base'],
+                hora_act_desp_exp=pd.to_datetime(row['Hora act.desp.exp.'], errors='coerce').time() if pd.notnull(row['Hora act.desp.exp.']) else None,
+                sector=row['Sector'],
+                fecha_requerida=pd.to_datetime(row['Fecha Requerida'], errors='coerce').date() if pd.notnull(row['Fecha Requerida']) else None,
+                hora_requerida=pd.to_datetime(row['Hora requerida'], errors='coerce').time() if pd.notnull(row['Hora requerida']) else None,
+                placa_vehiculo=row['Placa Vehículo 1'],
+                identif_un_manip=row['Identif. 2 un.manip.'],
+                fecha_mov_mcia_real=pd.to_datetime(row['Fe.mov.mcía.real'], errors='coerce').date() if pd.notnull(row['Fe.mov.mcía.real']) else None,
+                num_transporte=row['Nº de transporte'],
+                inicio_actual_carga=pd.to_datetime(row['Inicio actual carga'], errors='coerce').date() if pd.notnull(row['Inicio actual carga']) else None,
+                hora_act_inic_carga=pd.to_datetime(row['Hora act.inic.carga'], errors='coerce').time() if pd.notnull(row['Hora act.inic.carga']) else None,
+                fecha_act_desp_exped=pd.to_datetime(row['Fe.act.desp.exped.'], errors='coerce').date() if pd.notnull(row['Fe.act.desp.exped.']) else None
+            )
+            db.session.add(pedido)
+        
+        db.session.commit()
+        return jsonify({'message': 'Datos publicados exitosamente'}), 200
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+
 
 # Endpoint para obtener el rol de un usuario por ID
 @api.route('/get-user-role', methods=['GET'])

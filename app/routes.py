@@ -51,28 +51,13 @@ def publish_data():
                         'cantidad_confirmada': int(row['Cantidad confirmada']) if pd.notna(row['Cantidad confirmada']) and not pd.isna(row['Cantidad confirmada']) else 0,
                         'cantidad_entrega': int(row['Cantidad entrega']) if pd.notna(row['Cantidad entrega']) and not pd.isna(row['Cantidad entrega']) else 0,
                         'unidad_medida_base': row['Unidad medida base'] if pd.notna(row['Unidad medida base']) else None,
-                        'hora_act_desp_exp': (
-                            pd.to_datetime(row['Hora act.desp.exp.'], errors='coerce').time()
-                            if pd.notna(row['Hora act.desp.exp.']) and not pd.isna(row['Hora act.desp.exp.'])
-                            else None
-                        ),
                         'sector': row['Sector'] if pd.notna(row['Sector']) else None,
                         'fecha_requerida': pd.to_datetime(row['Fecha Requerida'], errors='coerce').date() if pd.notna(row['Fecha Requerida']) else None,
-                        'hora_requerida': (
-                            pd.to_datetime(row['Hora compromiso'], errors='coerce').time()
-                            if pd.notna(row['Hora compromiso']) and not pd.isna(row['Hora compromiso'])
-                            else None
-                        ),
                         'placa_vehiculo': row['Placa Vehículo 1'] if pd.notna(row['Placa Vehículo 1']) else None,
                         'identif_un_manip': row['Identif. un. manip.'] if pd.notna(row['Identif. un. manip.']) else None,
                         'fecha_mov_mcia_real': pd.to_datetime(row['Fe.act.desp.exped.'], errors='coerce').date() if pd.notna(row['Fe.act.desp.exped.']) else None,
                         'num_transporte': row['Nº de transporte'] if pd.notna(row['Nº de transporte']) else None,
                         'inicio_actual_carga': pd.to_datetime(row['Inicio actual carga'], errors='coerce').date() if pd.notna(row['Inicio actual carga']) else None,
-                        'hora_act_inic_carga': (
-                            pd.to_datetime(row['Hora act.inic.carga'], errors='coerce').time()
-                            if pd.notna(row['Hora act.inic.carga']) and not pd.isna(row['Hora act.inic.carga'])
-                            else None
-                        ),
                         'fecha_act_desp_exped': pd.to_datetime(row['Fe.act.desp.exped.'], errors='coerce').date() if pd.notna(row['Fe.act.desp.exped.']) else None,
                     })
                 
@@ -95,6 +80,7 @@ def publish_data():
         db.session.rollback()
         print(f"❌ Error al procesar la solicitud: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
 
 
 

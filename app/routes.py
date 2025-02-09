@@ -19,8 +19,8 @@ def publish_data():
             return jsonify({'error': 'No se recibió archivo en la solicitud'}), 400
 
         file = request.files['file']
-        df = pd.read_excel(file)  # Cargar el archivo completo sin chunksize
-        batch_size = 5000  # Procesar en bloques de 5000 filas
+        df = pd.read_excel(file)  # Cargar el archivo completo
+        batch_size = 1000  # Procesar en bloques de 1000 filas
 
         print("✅ Archivo recibido y procesado en modo optimizado.")
         print(f"� Total de filas en el archivo: {len(df)}")
@@ -36,16 +36,17 @@ def publish_data():
                     pedidos_data.append({
                         'fecha_entrega': pd.to_datetime(row['Fecha Entrega'], errors='coerce').date() if pd.notna(row['Fecha Entrega']) else None,
                         'fecha_creacion': pd.to_datetime(row['Fecha Creación'], errors='coerce').date() if pd.notna(row['Fecha Creación']) else None,
-                        'cantidad_entrega': int(row['Cantidad entrega']) if pd.notna(row['Cantidad entrega']) and not pd.isna(row['Cantidad entrega']) else 0,
-                        'cantidad_pedido': int(row['Cantida Pedido']) if pd.notna(row['Cantida Pedido']) and not pd.isna(row['Cantida Pedido']) else 0,
-                        'cantidad_confirmada': int(row['Cantidad confirmada']) if pd.notna(row['Cantidad confirmada']) and not pd.isna(row['Cantidad confirmada']) else 0,
+                        'cantidad_entrega': int(row['Cantidad entrega']) if pd.notna(row['Cantidad entrega']) else 0,
+                        'cantidad_pedido': int(row['Cantida Pedido']) if pd.notna(row['Cantida Pedido']) else 0,
+                        'cantidad_confirmada': int(row['Cantidad confirmada']) if pd.notna(row['Cantidad confirmada']) else 0,
                         'estatus_pedido': row['Estatus Pedido'] if pd.notna(row['Estatus Pedido']) else None,
                         'centro': row['Centro'] if pd.notna(row['Centro']) else None,
                         'material': row['Material'] if pd.notna(row['Material']) else None,
                         'texto_breve_material': row['Texto breve de material'] if pd.notna(row['Texto breve de material']) else None,
                         'num_transporte': row['Nº de transporte'] if pd.notna(row['Nº de transporte']) else None,
+                        'solicitante': row['Solicitante'] if pd.notna(row['Solicitante']) else None,
+                        'nombre_solicitante': row['Nombre Solicitante'] if pd.notna(row['Nombre Solicitante']) else None,
                     })
-                
                 except Exception as row_error:
                     print(f"⚠️ Error en fila {row.get('Pedido', 'Desconocido')}: {row_error}")
                     continue  # Evita que una fila con error bloquee la inserción
@@ -56,7 +57,7 @@ def publish_data():
                 db.session.flush()  # Forzar la escritura antes del commit
                 db.session.commit()
                 print(f"✅ Insertado un lote de {len(pedidos_data)} filas correctamente.")
-                pedidos_data = []  # Vaciar la lista para el siguiente lote
+                pedidos_data.clear()  # Liberar memoria
 
         return jsonify({'message': 'Datos publicados exitosamente'}), 200
 
@@ -64,6 +65,7 @@ def publish_data():
         db.session.rollback()
         print(f"❌ Error al procesar la solicitud: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
 
 
 

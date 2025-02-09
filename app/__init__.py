@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
@@ -26,7 +26,18 @@ def create_app():
         "https://cefront.vercel.app",
         "http://localhost:3000",
     ]
-    CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS }}, supports_credentials=True)
+    CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}}, supports_credentials=True)
+
+    # Middleware para agregar headers CORS a todas las respuestas
+    @app.after_request
+    def add_cors_headers(response):
+        origin = request.headers.get("Origin")
+        if origin in ALLOWED_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        return response
 
     # Registrar rutas
     from app.routes import api

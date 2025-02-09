@@ -38,7 +38,7 @@ def publish_data():
                 fecha_entrega=pd.to_datetime(row['Fecha Entrega'], errors='coerce').date() if pd.notna(row['Fecha Entrega']) else None,
                 material=row['Material'] if pd.notna(row['Material']) else "Material desconocido",
                 texto_breve_material=row['Texto breve de material'] if pd.notna(row['Texto breve de material']) else "Sin descripción",
-                cantidad_pedido=int(row['Cantidad Pedido']) if pd.notna(row['Cantidad Pedido']) else 0,
+                cantidad_pedido=int(row['Cantida Pedido']) if pd.notna(row['Cantida Pedido']) else 0,
                 cantidad_confirmada=int(row['Cantidad confirmada']) if pd.notna(row['Cantidad confirmada']) else 0,
                 cantidad_entrega=int(row['Cantidad entrega']) if pd.notna(row['Cantidad entrega']) else 0,
                 unidad_medida_base=row['Unidad medida base'] if pd.notna(row['Unidad medida base']) else "No especificado",

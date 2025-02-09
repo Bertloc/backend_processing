@@ -573,8 +573,8 @@ def daily_delivery_report():
         return jsonify({"error": str(e)}), 500
 
 
-@api.route('/api/get-client-data/<solicitante>', methods=['GET'])
-def get_client_data(solicitante):
+@api.route('/api/get-client-orders/<solicitante>', methods=['GET'])
+def get_client_orders(solicitante):
     try:
         # Consulta la base de datos para obtener los datos del cliente
         pedidos = Pedido.query.filter_by(solicitante=solicitante).all()

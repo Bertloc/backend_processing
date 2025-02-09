@@ -20,7 +20,7 @@ def publish_data():
 
         file = request.files['file']
         df = pd.read_excel(file)  # Cargar el archivo completo
-        batch_size = 250  # Reducimos el tamaño del batch para prevenir timeout
+        batch_size = 100  # Reducimos el tamaño del batch para prevenir timeout
         errores = []  # Lista para almacenar errores y revisarlos después
 
         print("✅ Archivo recibido y procesado en modo optimizado.")

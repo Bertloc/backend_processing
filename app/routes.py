@@ -16,50 +16,54 @@ published_dashboards = {}
 def publish_data():
     try:
         if 'file' not in request.files:
-            return jsonify({'error': 'No se encontró el archivo'}), 400
+            return jsonify({'error': 'No se recibió archivo en la solicitud'}), 400
         
         file = request.files['file']
         df = pd.read_excel(file)
-        
+
+        print("✅ Archivo recibido y procesado correctamente.")  # Log de depuración
+
         for _, row in df.iterrows():
             pedido = Pedido(
-                centro=row['Centro'],
-                desc_planta=row['Desc. Planta'],
-                solicitante=str(row['Solicitante']),
-                nombre_solicitante=row['Nombre Solicitante'],
-                destinatario_mcia=str(row['Destinatario mcía.']),
-                nombre_destinatario=row['Nombre Destinatario'],
-                fecha_creacion=pd.to_datetime(row['Fecha Creación']).date(),
-                pedido=str(row['Pedido']),
-                estatus_pedido=row['Estatus Pedido'],
-                entrega=str(row['Entrega']),
-                fecha_entrega=pd.to_datetime(row['Fecha Entrega']).date(),
-                material=row['Material'],
-                texto_breve_material=row['Texto breve material'],
-                cantidad_pedido=int(row['Cantidad Pedido']),
-                cantidad_confirmada=int(row['Cantidad confirmada']),
-                cantidad_entrega=int(row['Cantidad entrega']),
-                unidad_medida_base=row['Unidad medida base'],
-                hora_act_desp_exp=pd.to_datetime(row['Hora act.desp.exp.'], errors='coerce').time() if pd.notnull(row['Hora act.desp.exp.']) else None,
-                sector=row['Sector'],
-                fecha_requerida=pd.to_datetime(row['Fecha Requerida'], errors='coerce').date() if pd.notnull(row['Fecha Requerida']) else None,
-                hora_requerida=pd.to_datetime(row['Hora requerida'], errors='coerce').time() if pd.notnull(row['Hora requerida']) else None,
-                placa_vehiculo=row['Placa Vehículo 1'],
-                identif_un_manip=row['Identif. 2 un.manip.'],
-                fecha_mov_mcia_real=pd.to_datetime(row['Fe.mov.mcía.real'], errors='coerce').date() if pd.notnull(row['Fe.mov.mcía.real']) else None,
-                num_transporte=row['Nº de transporte'],
-                inicio_actual_carga=pd.to_datetime(row['Inicio actual carga'], errors='coerce').date() if pd.notnull(row['Inicio actual carga']) else None,
-                hora_act_inic_carga=pd.to_datetime(row['Hora act.inic.carga'], errors='coerce').time() if pd.notnull(row['Hora act.inic.carga']) else None,
-                fecha_act_desp_exped=pd.to_datetime(row['Fe.act.desp.exped.'], errors='coerce').date() if pd.notnull(row['Fe.act.desp.exped.']) else None
+                centro=row['Centro'] if pd.notna(row['Centro']) else "Desconocido",
+                desc_planta=row['Desc. Planta'] if pd.notna(row['Desc. Planta']) else "No especificado",
+                solicitante=row['Solicitante'] if pd.notna(row['Solicitante']) else "00000",
+                nombre_solicitante=row['Nombre Solicitante'] if pd.notna(row['Nombre Solicitante']) else "Sin nombre",
+                destinatario_mcia=row['Destinatario mcía.'] if pd.notna(row['Destinatario mcía.']) else "No definido",
+                nombre_destinatario=row['Nombre Destinatario'] if pd.notna(row['Nombre Destinatario']) else "Desconocido",
+                fecha_creacion=pd.to_datetime(row['Fecha Creación'], errors='coerce').date() if pd.notna(row['Fecha Creación']) else None,
+                pedido=row['Pedido'] if pd.notna(row['Pedido']) else "No especificado",
+                estatus_pedido=row['Estatus Pedido'] if pd.notna(row['Estatus Pedido']) else "Pendiente",
+                entrega=row['Entrega'] if pd.notna(row['Entrega']) else "No definido",
+                fecha_entrega=pd.to_datetime(row['Fecha Entrega'], errors='coerce').date() if pd.notna(row['Fecha Entrega']) else None,
+                material=row['Material'] if pd.notna(row['Material']) else "Material desconocido",
+                texto_breve_material=row['Texto breve de material'] if pd.notna(row['Texto breve de material']) else "Sin descripción",
+                cantidad_pedido=int(row['Cantidad Pedido']) if pd.notna(row['Cantidad Pedido']) else 0,
+                cantidad_confirmada=int(row['Cantidad confirmada']) if pd.notna(row['Cantidad confirmada']) else 0,
+                cantidad_entrega=int(row['Cantidad entrega']) if pd.notna(row['Cantidad entrega']) else 0,
+                unidad_medida_base=row['Unidad medida base'] if pd.notna(row['Unidad medida base']) else "No especificado",
+                hora_act_desp_exp=pd.to_datetime(row['Hora act.desp.exp.'], errors='coerce').time() if pd.notna(row['Hora act.desp.exp.']) else None,
+                sector=row['Sector'] if pd.notna(row['Sector']) else "No definido",
+                fecha_requerida=pd.to_datetime(row['Fecha Requerida'], errors='coerce').date() if pd.notna(row['Fecha Requerida']) else None,
+                hora_requerida=pd.to_datetime(row['Hora compromiso'], errors='coerce').time() if pd.notna(row['Hora compromiso']) else None,
+                placa_vehiculo=row['Placa Vehículo 1'] if pd.notna(row['Placa Vehículo 1']) else "No disponible",
+                identif_un_manip=row['Identif. un. manip.'] if pd.notna(row['Identif. un. manip.']) else "No definido",
+                fecha_mov_mcia_real=pd.to_datetime(row['Fe.act.desp.exped.'], errors='coerce').date() if pd.notna(row['Fe.act.desp.exped.']) else None,
+                num_transporte=row['Nº de transporte'] if pd.notna(row['Nº de transporte']) else "No especificado",
+                inicio_actual_carga=pd.to_datetime(row['Inicio actual carga'], errors='coerce').date() if pd.notna(row['Inicio actual carga']) else None,
+                hora_act_inic_carga=pd.to_datetime(row['Hora act.inic.carga'], errors='coerce').time() if pd.notna(row['Hora act.inic.carga']) else None,
+                fecha_act_desp_exped=pd.to_datetime(row['Fe.act.desp.exped.'], errors='coerce').date() if pd.notna(row['Fe.act.desp.exped.']) else None
             )
             db.session.add(pedido)
         
         db.session.commit()
         return jsonify({'message': 'Datos publicados exitosamente'}), 200
-    
+
     except Exception as e:
         db.session.rollback()
+        print(f"❌ Error al procesar la solicitud: {str(e)}")  # Log de error
         return jsonify({'error': str(e)}), 500
+
 
 
 

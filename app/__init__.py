@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
@@ -16,28 +16,19 @@ def create_app():
 
     # Inicializar la base de datos con la app
     db.init_app(app)
-    bcrypt.init_app(app)  # Agregar esta línea para bcrypt
+    bcrypt.init_app(app)  # Inicialización de bcrypt
 
     # Importar modelos para que Flask los reconozca
     from app import models
 
-    # Configuración CORS
+    # Configuración CORS más permisiva para pruebas
     ALLOWED_ORIGINS = [
         "https://cefront.vercel.app",
         "http://localhost:3000",
     ]
-    CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}}, supports_credentials=True)
-
-    # Middleware para agregar headers CORS a todas las respuestas
-    @app.after_request
-    def add_cors_headers(response):
-        origin = request.headers.get("Origin")
-        if origin in ALLOWED_ORIGINS:
-            response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS, PUT, DELETE"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        return response
+    
+    # Aplica CORS a toda la app, asegurando compatibilidad con credenciales
+    CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS, "supports_credentials": True, "allow_headers": ["Content-Type", "Authorization"], "methods": ["GET", "POST", "OPTIONS"]}})
 
     # Registrar rutas
     from app.routes import api

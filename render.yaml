@@ -7,6 +7,6 @@ services:
     startCommand: "gunicorn -w 4 -b 0.0.0.0:5000 run:app"
     envVars:
       - key: GUNICORN_CMD_ARGS
-        value: "--timeout 500"
+        value: "--timeout 900"
       - key: PORT
-        value: "8000"
+        value: "5000"

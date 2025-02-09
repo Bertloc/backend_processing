@@ -83,7 +83,9 @@ def publish_data():
             # Insertar el bloque en la base de datos de manera eficiente
             if pedidos_data:
                 db.session.bulk_insert_mappings(Pedido, pedidos_data)
+                db.session.flush()  # Forzar la escritura antes del commit
                 db.session.commit()
+                print("✅ Los datos fueron insertados correctamente en la base de datos.")
                 print(f"✅ Insertado un lote de {len(pedidos_data)} filas correctamente.")
                 pedidos_data = []  # Vaciar la lista para el siguiente lote
 

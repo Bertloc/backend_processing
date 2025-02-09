@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: backend-processing
+    env: python
+    region: oregon
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn -w 4 -b 0.0.0.0:5000 run:app"
+    envVars:
+      - key: GUNICORN_CMD_ARGS
+        value: "--timeout 300"
+      - key: PORT
+        value: "5000"

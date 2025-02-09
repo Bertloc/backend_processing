@@ -13,3 +13,5 @@ class User(db.Model):
     __table_args__ = (
         CheckConstraint("LOWER(rol) IN ('admin', 'cliente')", name="usuarios_rol_check"),
     )
+
+

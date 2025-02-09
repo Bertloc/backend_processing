@@ -19,52 +19,63 @@ def publish_data():
             return jsonify({'error': 'No se recibió archivo en la solicitud'}), 400
         
         file = request.files['file']
-        df = pd.read_excel(file)
-
-        print("✅ Archivo recibido y procesado correctamente.")  # Log de depuración
-        print(f"📋 Columnas detectadas: {df.columns.tolist()}")  # Ver columnas para evitar errores
-
-        for _, row in df.iterrows():
-            pedido = Pedido(
-                centro=row['Centro'] if pd.notna(row['Centro']) else None,
-                desc_planta=row['Desc. Planta'] if pd.notna(row['Desc. Planta']) else None,
-                solicitante=row['Solicitante'] if pd.notna(row['Solicitante']) else None,
-                nombre_solicitante=row['Nombre Solicitante'] if pd.notna(row['Nombre Solicitante']) else None,
-                destinatario_mcia=row['Destinatario mcía.'] if pd.notna(row['Destinatario mcía.']) else None,
-                nombre_destinatario=row['Nombre Destinatario'] if pd.notna(row['Nombre Destinatario']) else None,
-                fecha_creacion=pd.to_datetime(row['Fecha Creación'], errors='coerce').date() if pd.notna(row['Fecha Creación']) else None,
-                pedido=row['Pedido'] if pd.notna(row['Pedido']) else None,
-                estatus_pedido=row['Estatus Pedido'] if pd.notna(row['Estatus Pedido']) else None,
-                entrega=row['Entrega'] if pd.notna(row['Entrega']) else None,
-                fecha_entrega=pd.to_datetime(row['Fecha Entrega'], errors='coerce').date() if pd.notna(row['Fecha Entrega']) else None,
-                material=row['Material'] if pd.notna(row['Material']) else None,
-                texto_breve_material=row['Texto breve de material'] if pd.notna(row['Texto breve de material']) else None,
-                cantidad_pedido=int(row['Cantida Pedido']) if pd.notna(row['Cantida Pedido']) else None,
-                cantidad_confirmada=int(row['Cantidad confirmada']) if pd.notna(row['Cantidad confirmada']) else None,
-                cantidad_entrega=int(row['Cantidad entrega']) if pd.notna(row['Cantidad entrega']) else None,
-                unidad_medida_base=row['Unidad medida base'] if pd.notna(row['Unidad medida base']) else None,
-                hora_act_desp_exp=pd.to_datetime(row['Hora act.desp.exp.'], errors='coerce').time() if pd.notna(row['Hora act.desp.exp.']) and not pd.isna(row['Hora act.desp.exp.']) else None,
-                sector=row['Sector'] if pd.notna(row['Sector']) else None,
-                fecha_requerida=pd.to_datetime(row['Fecha Requerida'], errors='coerce').date() if pd.notna(row['Fecha Requerida']) else None,
-                hora_requerida=pd.to_datetime(row['Hora compromiso'], errors='coerce').time() if pd.notna(row['Hora compromiso']) and not pd.isna(row['Hora compromiso']) else None,
-                placa_vehiculo=row['Placa Vehículo 1'] if pd.notna(row['Placa Vehículo 1']) else None,
-                identif_un_manip=row['Identif. un. manip.'] if pd.notna(row['Identif. un. manip.']) else None,
-                fecha_mov_mcia_real=pd.to_datetime(row['Fe.act.desp.exped.'], errors='coerce').date() if pd.notna(row['Fe.act.desp.exped.']) else None,
-                num_transporte=row['Nº de transporte'] if pd.notna(row['Nº de transporte']) else None,
-                inicio_actual_carga=pd.to_datetime(row['Inicio actual carga'], errors='coerce').date() if pd.notna(row['Inicio actual carga']) else None,
-                hora_act_inic_carga=pd.to_datetime(row['Hora act.inic.carga'], errors='coerce').time() if pd.notna(row['Hora act.inic.carga']) and not pd.isna(row['Hora act.inic.carga']) else None,
-                fecha_act_desp_exped=pd.to_datetime(row['Fe.act.desp.exped.'], errors='coerce').date() if pd.notna(row['Fe.act.desp.exped.']) else None
-            )
-            db.session.add(pedido)
+        chunk_size = 5000  # Leer y procesar en bloques de 5000 filas
         
-        db.session.commit()
-        return jsonify({'message': 'Datos publicados exitosamente'}), 200
+        print("✅ Archivo recibido y procesado por bloques correctamente.")
+        
+        for chunk in pd.read_excel(file, chunksize=chunk_size):
+            print(f"� Procesando bloque de {len(chunk)} filas...")
 
+            pedidos_data = []  # Lista para almacenar los datos procesados en el bloque
+            
+            for _, row in chunk.iterrows():
+                pedidos_data.append({
+                    'centro': row['Centro'] if pd.notna(row['Centro']) else "Desconocido",
+                    'desc_planta': row['Desc. Planta'] if pd.notna(row['Desc. Planta']) else "No especificado",
+                    'solicitante': row['Solicitante'] if pd.notna(row['Solicitante']) else "00000",
+                    'nombre_solicitante': row['Nombre Solicitante'] if pd.notna(row['Nombre Solicitante']) else "Sin nombre",
+                    'destinatario_mcia': row['Destinatario mcía.'] if pd.notna(row['Destinatario mcía.']) else "No definido",
+                    'nombre_destinatario': row['Nombre Destinatario'] if pd.notna(row['Nombre Destinatario']) else "Desconocido",
+                    'fecha_creacion': pd.to_datetime(row['Fecha Creación'], errors='coerce').date() if pd.notna(row['Fecha Creación']) else None,
+                    'pedido': row['Pedido'] if pd.notna(row['Pedido']) else "No especificado",
+                    'estatus_pedido': row['Estatus Pedido'] if pd.notna(row['Estatus Pedido']) else "Pendiente",
+                    'entrega': row['Entrega'] if pd.notna(row['Entrega']) else "No definido",
+                    'fecha_entrega': pd.to_datetime(row['Fecha Entrega'], errors='coerce').date() if pd.notna(row['Fecha Entrega']) else None,
+                    'material': row['Material'] if pd.notna(row['Material']) else "Material desconocido",
+                    'texto_breve_material': row['Texto breve de material'] if pd.notna(row['Texto breve de material']) else "Sin descripción",
+                    'cantidad_pedido': int(row['Cantida Pedido']) if pd.notna(row['Cantida Pedido']) else 0,
+                    'cantidad_confirmada': int(row['Cantidad confirmada']) if pd.notna(row['Cantidad confirmada']) else 0,
+                    'cantidad_entrega': int(row['Cantidad entrega']) if pd.notna(row['Cantidad entrega']) else 0,
+                    'unidad_medida_base': row['Unidad medida base'] if pd.notna(row['Unidad medida base']) else "No especificado",
+                    'hora_act_desp_exp': pd.to_datetime(row['Hora act.desp.exp.'], errors='coerce').time() if pd.notna(row['Hora act.desp.exp.']) else None,
+                    'sector': row['Sector'] if pd.notna(row['Sector']) else "No definido",
+                    'fecha_requerida': pd.to_datetime(row['Fecha Requerida'], errors='coerce').date() if pd.notna(row['Fecha Requerida']) else None,
+                    'hora_requerida': pd.to_datetime(row['Hora compromiso'], errors='coerce').time() if pd.notna(row['Hora compromiso']) else None,
+                    'placa_vehiculo': row['Placa Vehículo 1'] if pd.notna(row['Placa Vehículo 1']) else "No disponible",
+                    'identif_un_manip': row['Identif. un. manip.'] if pd.notna(row['Identif. un. manip.']) else "No definido",
+                    'fecha_mov_mcia_real': pd.to_datetime(row['Fe.act.desp.exped.'], errors='coerce').date() if pd.notna(row['Fe.act.desp.exped.']) else None,
+                    'num_transporte': row['Nº de transporte'] if pd.notna(row['Nº de transporte']) else "No especificado",
+                    'inicio_actual_carga': pd.to_datetime(row['Inicio actual carga'], errors='coerce').date() if pd.notna(row['Inicio actual carga']) else None,
+                    'hora_act_inic_carga': pd.to_datetime(row['Hora act.inic.carga'], errors='coerce').time() if pd.notna(row['Hora act.inic.carga']) else None,
+                    'fecha_act_desp_exped': pd.to_datetime(row['Fe.act.desp.exped.'], errors='coerce').date() if pd.notna(row['Fe.act.desp.exped.']) else None,
+                })
+            
+            # Insertar el bloque en la base de datos de manera eficiente
+            try:
+                db.session.bulk_insert_mappings(Pedido, pedidos_data)
+                db.session.commit()
+                print(f"✅ Bloque de {len(chunk)} filas insertado correctamente.")
+            except Exception as db_error:
+                db.session.rollback()
+                print(f"❌ Error al insertar en la base de datos: {str(db_error)}")
+                return jsonify({'error': f'Error en la base de datos: {str(db_error)}'}), 500
+        
+        return jsonify({'message': 'Datos publicados exitosamente'}), 200
+    
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Error al procesar la solicitud: {str(e)}")  # Log de error
+        print(f"❌ Error al procesar la solicitud: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
 
 
 

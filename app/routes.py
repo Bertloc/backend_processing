@@ -22,6 +22,7 @@ def publish_data():
         df = pd.read_excel(file)
 
         print("✅ Archivo recibido y procesado correctamente.")  # Log de depuración
+        print(f"📋 Columnas detectadas: {df.columns.tolist()}")  # Ver columnas para evitar errores
 
         for _, row in df.iterrows():
             pedido = Pedido(
@@ -38,7 +39,7 @@ def publish_data():
                 fecha_entrega=pd.to_datetime(row['Fecha Entrega'], errors='coerce').date() if pd.notna(row['Fecha Entrega']) else None,
                 material=row['Material'] if pd.notna(row['Material']) else None,
                 texto_breve_material=row['Texto breve de material'] if pd.notna(row['Texto breve de material']) else None,
-                cantidad_pedido=int(row['Cantidad Pedido']) if pd.notna(row['Cantidad Pedido']) else None,
+                cantidad_pedido=int(row['Cantida Pedido']) if pd.notna(row['Cantida Pedido']) else None,
                 cantidad_confirmada=int(row['Cantidad confirmada']) if pd.notna(row['Cantidad confirmada']) else None,
                 cantidad_entrega=int(row['Cantidad entrega']) if pd.notna(row['Cantidad entrega']) else None,
                 unidad_medida_base=row['Unidad medida base'] if pd.notna(row['Unidad medida base']) else None,

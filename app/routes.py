@@ -20,12 +20,14 @@ def publish_data():
 
         file = request.files['file']
         df = pd.read_excel(file)  # Cargar el archivo completo
-        batch_size = 500  # Procesar en bloques de 500 filas (antes 1000)
+        batch_size = 250  # Reducimos el tamaño del batch para prevenir timeout
+        errores = []  # Lista para almacenar errores y revisarlos después
 
         print("✅ Archivo recibido y procesado en modo optimizado.")
         print(f"� Total de filas en el archivo: {len(df)}")
 
         pedidos_data = []
+        total_insertadas = 0
 
         for start in range(0, len(df), batch_size):
             end = start + batch_size
@@ -48,22 +50,30 @@ def publish_data():
                         'nombre_solicitante': row['Nombre Solicitante'] if pd.notna(row['Nombre Solicitante']) else None,
                     })
                 except Exception as row_error:
-                    print(f"⚠️ Error en fila {row.get('Pedido', 'Desconocido')}: {row_error}")
+                    error_msg = f"⚠️ Error en fila {row.get('Pedido', 'Desconocido')}: {row_error}"
+                    print(error_msg)
+                    errores.append(error_msg)
                     continue  # Evita que una fila con error bloquee la inserción
 
             # Insertar el bloque en la base de datos de manera eficiente
             if pedidos_data:
                 try:
                     db.session.bulk_insert_mappings(Pedido, pedidos_data)
-                    db.session.commit()  # Hacer commit después de cada batch de 500 filas
-                    print(f"✅ Insertado un lote de {len(pedidos_data)} filas correctamente.")
+                    db.session.commit()  # Hacer commit después de cada batch de 250 filas
+                    total_insertadas += len(pedidos_data)
+                    print(f"✅ Insertado un lote de {len(pedidos_data)} filas correctamente. Total insertadas: {total_insertadas}")
                     pedidos_data.clear()  # Liberar memoria
                 except Exception as db_error:
                     db.session.rollback()  # Revertir cambios en caso de error
-                    print(f"❌ Error en la inserción del lote: {db_error}")
+                    error_msg = f"❌ Error en la inserción del lote: {db_error}"
+                    print(error_msg)
+                    errores.append(error_msg)
 
-        print("� Publicación de datos finalizada con éxito.")
-        return jsonify({'message': 'Datos publicados exitosamente'}), 200
+        print(f"� Publicación de datos finalizada con éxito. Total insertadas: {total_insertadas}")
+        if errores:
+            print(f"⚠️ Se encontraron {len(errores)} errores. Revisar log.")
+
+        return jsonify({'message': f'Datos publicados exitosamente. Total insertadas: {total_insertadas}', 'errores': errores}), 200
 
     except Exception as e:
         db.session.rollback()

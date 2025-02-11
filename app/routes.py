@@ -592,3 +592,12 @@ def get_client_orders(solicitante):
     except Exception as e:
         print(f"❌ Error al obtener datos del cliente {solicitante}: {str(e)}")
         return jsonify({'error': 'Error al obtener datos del cliente'}), 500
+
+
+@api.route('/api/get-all-clients', methods=['GET'])
+def get_all_clients():
+    try:
+        clientes = Pedido.query.with_entities(Pedido.solicitante, Pedido.nombre_solicitante).distinct().all()
+        return jsonify([{'solicitante': c.solicitante, 'nombre_solicitante': c.nombre_solicitante} for c in clientes]), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

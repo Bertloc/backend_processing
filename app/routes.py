@@ -172,28 +172,22 @@ def process_file():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@api.route('/compliance-summary', methods=['POST'])
+# ✅ Cumplimiento General
+@api.route('/compliance-summary', methods=['GET'])
 def compliance_summary():
     try:
-        file = request.files['file']
-        client_id = request.form.get('client_id')
-        
+        client_id = request.args.get('client_id')
         if not client_id:
             return jsonify({"error": "El client_id es requerido"}), 400
 
-        data = pd.read_excel(file)
-
-        # Convertir a int y filtrar por cliente
-        client_id = int(client_id)
-        filtered_data = data[data['Solicitante'] == client_id]
-
-        if filtered_data.empty:
+        pedidos = Pedido.query.filter_by(solicitante=client_id).all()
+        if not pedidos:
             return jsonify({"error": "No hay datos para este cliente"}), 404
 
-        delivered = filtered_data[filtered_data['Estatus Pedido'] == 'Despachado']['Cantida Pedido'].sum()
-        pending = filtered_data[filtered_data['Estatus Pedido'] == 'Programado']['Cantida Pedido'].sum()
-        confirmed = filtered_data[filtered_data['Estatus Pedido'] == 'Confirmado']['Cantida Pedido'].sum()
-        unconfirmed = filtered_data[filtered_data['Estatus Pedido'] == 'No confirmado']['Cantida Pedido'].sum()
+        delivered = sum(p.cantidad_pedido for p in pedidos if p.estatus_pedido == 'Despachado')
+        pending = sum(p.cantidad_pedido for p in pedidos if p.estatus_pedido == 'Programado')
+        confirmed = sum(p.cantidad_pedido for p in pedidos if p.estatus_pedido == 'Confirmado')
+        unconfirmed = sum(p.cantidad_pedido for p in pedidos if p.estatus_pedido == 'No confirmado')
 
         result = {
             "Despachado": delivered,
@@ -201,10 +195,10 @@ def compliance_summary():
             "Confirmado": confirmed,
             "No confirmado": unconfirmed
         }
-
         return jsonify(result), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 @api.route('/api/get-client-data/<int:client_id>', methods=['GET'])

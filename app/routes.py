@@ -417,7 +417,7 @@ def product_category_summary():
         return jsonify({"error": str(e)}), 500
 
         
-@# ✅ Reporte Diario de Entregas
+# ✅ Reporte Diario de Entregas
 @api.route('/api/daily-delivery-report', methods=['GET'])
 def daily_delivery_report():
     try:

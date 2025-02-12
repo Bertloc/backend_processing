@@ -278,35 +278,26 @@ def report_delivery_trends():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@api.route('/api/delivery-report', methods=['POST'])
+# ✅ Reporte de Entrega
+@api.route('/api/delivery-report', methods=['GET'])
 def delivery_report():
     try:
-        # Recibir el archivo subido
-        file = request.files['file']
-        data = pd.read_excel(file)
+        client_id = request.args.get('client_id')
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
 
-        # Renombrar columnas si tienen nombres diferentes
-        data.rename(columns={
-            'Fecha Entrega': 'Fecha Entrega',
-            'Cantidad entrega': 'Cantidad entrega',
-            'Material': 'Material'
-        }, inplace=True)
+        pedidos = Pedido.query.filter_by(solicitante=client_id).all()
+        if not pedidos:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
 
-        # Verificar si las columnas requeridas existen
-        required_columns = ['Fecha Entrega', 'Material', 'Cantidad entrega']
-        if not all(column in data.columns for column in required_columns):
-            return jsonify({
-                "error": f"El archivo debe contener las columnas: {required_columns}"
-            }), 400
+        summary = {}
+        for p in pedidos:
+            fecha = p.fecha_entrega.strftime('%Y-%m-%d') if p.fecha_entrega else "Desconocido"
+            clave = (fecha, p.material)
+            summary[clave] = summary.get(clave, 0) + p.cantidad_entrega
 
-        # Agrupar los datos por Fecha Entrega y Material
-        summary = data.groupby(['Fecha Entrega', 'Material'])['Cantidad entrega'].sum().reset_index()
-
-        # Convertir los datos al formato JSON
-        result = summary.to_dict(orient='records')
-
+        result = [{"Fecha Entrega": k[0], "Material": k[1], "Cantidad entrega": v} for k, v in summary.items()]
         return jsonify(result), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

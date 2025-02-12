@@ -394,30 +394,28 @@ def pending_orders():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@api.route('/api/product-category-summary', methods=['POST'])
+# ✅ Resumen por Categoría de Producto
+@api.route('/api/product-category-summary', methods=['GET'])
 def product_category_summary():
     try:
-        # Recibir el archivo subido
-        file = request.files['file']
-        data = pd.read_excel(file)
+        client_id = request.args.get('client_id')
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
 
-        # Verificar si las columnas requeridas existen
-        required_columns = ['Texto breve de material', 'Cantida Pedido']
-        if not all(column in data.columns for column in required_columns):
-            return jsonify({
-                "error": f"El archivo debe contener las columnas: {required_columns}"
-            }), 400
+        pedidos = Pedido.query.filter_by(solicitante=client_id).all()
+        if not pedidos:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
 
-        # Procesar los datos agrupados por categoría de producto
-        summary = data.groupby('Texto breve de material')['Cantida Pedido'].sum()
+        summary = {}
+        for p in pedidos:
+            categoria = p.texto_breve_material if p.texto_breve_material else "Desconocido"
+            summary[categoria] = summary.get(categoria, 0) + p.cantidad_pedido
 
-        # Convertir el resultado a JSON
-        result = summary.reset_index().to_dict(orient='records')
-
+        result = [{"Texto breve de material": k, "Cantida Pedido": v} for k, v in summary.items()]
         return jsonify(result), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
         
 @api.route('/api/daily-delivery-report', methods=['POST'])
 def daily_delivery_report():

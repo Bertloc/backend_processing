@@ -233,41 +233,26 @@ def daily_trend():
         return jsonify({"error": str(e)}), 500
 
 
-@api.route('/api/monthly-product-allocation', methods=['POST'])
+# ✅ Asignación Mensual de Producto
+@api.route('/api/monthly-product-allocation', methods=['GET'])
 def monthly_product_allocation():
     try:
-        # Recibir el archivo subido
-        file = request.files['file']
-        data = pd.read_excel(file)
+        client_id = request.args.get('client_id')
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
 
-        # Renombrar columnas para alinearlas con los nombres esperados
-        data.rename(columns={
-            'Fecha Creación': 'Fecha Creación',
-            'Texto breve de material': 'Texto Breve Material',
-            'Cantida Pedido': 'Cantida Pedido'
-        }, inplace=True)
+        pedidos = Pedido.query.filter_by(solicitante=client_id).all()
+        if not pedidos:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
 
-        # Verificar si las columnas requeridas existen
-        required_columns = ['Fecha Creación', 'Texto Breve Material', 'Cantida Pedido']
-        if not all(column in data.columns for column in required_columns):
-            return jsonify({
-                "error": f"El archivo debe contener las columnas: {required_columns}"
-            }), 400
+        summary = {}
+        for p in pedidos:
+            mes = p.fecha_creacion.strftime('%Y-%m') if p.fecha_creacion else "Desconocido"
+            clave = (mes, p.texto_breve_material)
+            summary[clave] = summary.get(clave, 0) + p.cantidad_pedido
 
-        # Convertir la columna de fecha a formato datetime
-        data['Fecha Creación'] = pd.to_datetime(data['Fecha Creación'], errors='coerce')
-
-        # Crear una nueva columna para el mes y año
-        data['Mes'] = data['Fecha Creación'].dt.to_period('M').astype(str)
-
-        # Agrupar los datos por Mes y Texto Breve Material, y sumar Cantida Pedido
-        summary = data.groupby(['Mes', 'Texto Breve Material'])['Cantida Pedido'].sum().reset_index()
-
-        # Convertir los datos al formato JSON
-        result = summary.to_dict(orient='records')
-
+        result = [{"Mes": k[0], "Texto Breve Material": k[1], "Cantida Pedido": v} for k, v in summary.items()]
         return jsonify(result), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

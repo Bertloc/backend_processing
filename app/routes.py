@@ -351,56 +351,31 @@ def distribution_by_center():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@api.route('/api/daily-summary', methods=['POST'])
+# ✅ Resumen Diario
+@api.route('/api/daily-summary', methods=['GET'])
 def daily_summary():
     try:
-        # Recibir el archivo subido
-        file = request.files['file']
-        data = pd.read_excel(file)
+        client_id = request.args.get('client_id')
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
 
-        # Renombrar columnas si tienen nombres diferentes
-        data.rename(columns={
-            'Fecha Entrega': 'Fecha Entrega',
-            'Cantida Pedido': 'Cantida Pedido',
-            'Cantidad entrega': 'Cantidad entrega'
-        }, inplace=True)
+        pedidos = Pedido.query.filter_by(solicitante=client_id).all()
+        if not pedidos:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
 
-        # Verificar si las columnas requeridas existen
-        required_columns = ['Fecha Entrega', 'Cantida Pedido', 'Cantidad entrega']
-        if not all(column in data.columns for column in required_columns):
-            return jsonify({
-                "error": f"El archivo debe contener las columnas: {required_columns}"
-            }), 400
+        summary = {}
+        for p in pedidos:
+            fecha = p.fecha_entrega.strftime('%Y-%m-%d') if p.fecha_entrega else "Desconocido"
+            if fecha not in summary:
+                summary[fecha] = {"Cantida Pedido": 0, "Cantidad entrega": 0}
+            summary[fecha]["Cantida Pedido"] += p.cantidad_pedido
+            summary[fecha]["Cantidad entrega"] += p.cantidad_entrega
 
-        # Reemplazar valores nulos con valores predeterminados
-        data['Fecha Entrega'] = pd.to_datetime(data['Fecha Entrega'], errors='coerce')
-        data['Cantida Pedido'] = pd.to_numeric(data['Cantida Pedido'], errors='coerce').fillna(0)
-        data['Cantidad entrega'] = pd.to_numeric(data['Cantidad entrega'], errors='coerce').fillna(0)
-
-        # Eliminar filas con fechas inválidas
-        data = data.dropna(subset=['Fecha Entrega'])
-
-        # Agrupar los datos por Fecha Entrega
-        grouped = data.groupby('Fecha Entrega').agg({
-            'Cantida Pedido': 'sum',
-            'Cantidad entrega': 'sum'
-        }).reset_index()
-
-        # Calcular el % de aprovechamiento
-        grouped['% Aprovechamiento'] = (
-            (grouped['Cantidad entrega'] / grouped['Cantida Pedido']) * 100
-        ).round(2)
-
-        # Formatear la columna de fechas en formato ISO 8601
-        grouped['Fecha Entrega'] = grouped['Fecha Entrega'].dt.strftime('%Y-%m-%dT%H:%M:%S')
-
-        # Convertir los datos al formato JSON
-        result = grouped.to_dict(orient='records')
-
+        result = [{"Fecha Entrega": k, "Cantida Pedido": v["Cantida Pedido"], "Cantidad entrega": v["Cantidad entrega"], "% Aprovechamiento": round((v["Cantidad entrega"] / v["Cantida Pedido"] * 100) if v["Cantida Pedido"] else 0, 2)} for k, v in summary.items()]
         return jsonify(result), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @api.route('/api/pending-orders', methods=['POST'])
 def pending_orders():

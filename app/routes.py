@@ -329,34 +329,25 @@ def delivery_report():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@api.route('/api/distribution-by-center', methods=['POST'])
+# ✅ Distribución por Centro
+@api.route('/api/distribution-by-center', methods=['GET'])
 def distribution_by_center():
     try:
-        # Recibir el archivo subido
-        file = request.files['file']
-        data = pd.read_excel(file)
+        client_id = request.args.get('client_id')
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
 
-        # Renombrar columnas si tienen nombres diferentes
-        data.rename(columns={
-            'Centro': 'Centro',
-            'Cantidad entrega': 'Cantidad entrega'
-        }, inplace=True)
+        pedidos = Pedido.query.filter_by(solicitante=client_id).all()
+        if not pedidos:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
 
-        # Verificar si las columnas requeridas existen
-        required_columns = ['Centro', 'Cantidad entrega']
-        if not all(column in data.columns for column in required_columns):
-            return jsonify({
-                "error": f"El archivo debe contener las columnas: {required_columns}"
-            }), 400
+        summary = {}
+        for p in pedidos:
+            centro = p.centro if p.centro else "Desconocido"
+            summary[centro] = summary.get(centro, 0) + p.cantidad_entrega
 
-        # Agrupar los datos por Centro
-        summary = data.groupby('Centro')['Cantidad entrega'].sum().reset_index()
-
-        # Convertir los datos al formato JSON
-        result = summary.to_dict(orient='records')
-
+        result = [{"Centro": k, "Cantidad entrega": v} for k, v in summary.items()]
         return jsonify(result), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

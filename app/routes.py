@@ -256,44 +256,25 @@ def monthly_product_allocation():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@api.route('/api/report-delivery-trends', methods=['POST'])
+# ✅ Tendencias de Entrega
+@api.route('/api/report-delivery-trends', methods=['GET'])
 def report_delivery_trends():
     try:
-        # Recibir el archivo subido
-        file = request.files['file']
-        data = pd.read_excel(file)
+        client_id = request.args.get('client_id')
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
 
-        # Renombrar columnas si tienen nombres diferentes
-        data.rename(columns={
-            'Fecha Entrega': 'Fecha Entrega',
-            'Cantidad entrega': 'Cantidad entrega'
-        }, inplace=True)
+        pedidos = Pedido.query.filter_by(solicitante=client_id).all()
+        if not pedidos:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
 
-        # Verificar si las columnas requeridas existen
-        required_columns = ['Fecha Entrega', 'Cantidad entrega']
-        if not all(column in data.columns for column in required_columns):
-            return jsonify({
-                "error": f"El archivo debe contener las columnas: {required_columns}"
-            }), 400
+        summary = {}
+        for p in pedidos:
+            fecha = p.fecha_entrega.strftime('%Y-%m-%d') if p.fecha_entrega else "Desconocido"
+            summary[fecha] = summary.get(fecha, 0) + p.cantidad_entrega
 
-        # Reemplazar valores nulos con valores predeterminados
-        data['Fecha Entrega'] = pd.to_datetime(data['Fecha Entrega'], errors='coerce')  # Convertir a fechas
-        data['Cantidad entrega'] = pd.to_numeric(data['Cantidad entrega'], errors='coerce').fillna(0)
-
-        # Eliminar filas con fechas inválidas
-        data = data.dropna(subset=['Fecha Entrega'])
-
-        # Procesar los datos agrupados por Fecha Entrega
-        summary = data.groupby('Fecha Entrega')['Cantidad entrega'].sum().reset_index()
-
-        # Convertir la columna de fechas a formato ISO 8601
-        summary['Fecha Entrega'] = summary['Fecha Entrega'].dt.strftime('%Y-%m-%dT%H:%M:%S')
-
-        # Convertir el resultado a JSON
-        result = summary.to_dict(orient='records')
-
+        result = [{"Fecha Entrega": k, "Cantidad entrega": v} for k, v in summary.items()]
         return jsonify(result), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

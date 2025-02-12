@@ -377,35 +377,20 @@ def daily_summary():
         return jsonify({"error": str(e)}), 500
 
 
-@api.route('/api/pending-orders', methods=['POST'])
+# ✅ Pedidos Pendientes
+@api.route('/api/pending-orders', methods=['GET'])
 def pending_orders():
     try:
-        # Recibir el archivo subido
-        file = request.files['file']
-        data = pd.read_excel(file)
+        client_id = request.args.get('client_id')
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
 
-        # Renombrar columnas si tienen nombres diferentes
-        data.rename(columns={
-            'Estatus Pedido': 'Estatus Pedido',
-            'Material': 'Material',
-            'Cantidad confirmada': 'Cantidad confirmada'
-        }, inplace=True)
+        pedidos = Pedido.query.filter_by(solicitante=client_id, estatus_pedido='Pendiente').all()
+        if not pedidos:
+            return jsonify({"error": "No hay pedidos pendientes para este cliente"}), 404
 
-        # Verificar si las columnas requeridas existen
-        required_columns = ['Estatus Pedido', 'Material', 'Cantidad confirmada']
-        if not all(column in data.columns for column in required_columns):
-            return jsonify({
-                "error": f"El archivo debe contener las columnas: {required_columns}"
-            }), 400
-
-        # Filtrar pedidos donde Estatus Pedido sea "Pendiente"
-        pending_orders = data[data['Estatus Pedido'] == 'Pendiente']
-
-        # Seleccionar las columnas relevantes
-        result = pending_orders[['Material', 'Cantidad confirmada']].to_dict(orient='records')
-
+        result = [{"Material": p.material, "Cantidad confirmada": p.cantidad_confirmada} for p in pedidos]
         return jsonify(result), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

@@ -417,49 +417,29 @@ def product_category_summary():
         return jsonify({"error": str(e)}), 500
 
         
-@api.route('/api/daily-delivery-report', methods=['POST'])
+@# ✅ Reporte Diario de Entregas
+@api.route('/api/daily-delivery-report', methods=['GET'])
 def daily_delivery_report():
     try:
-        # Recibir el archivo subido
-        file = request.files['file']
-        data = pd.read_excel(file)
+        client_id = request.args.get('client_id')
+        if not client_id:
+            return jsonify({"error": "El client_id es requerido"}), 400
 
-        # Verificar si las columnas requeridas existen
-        required_columns = ['Fecha Entrega', 'Texto breve de material', 'Cantidad entrega', 'Nº de transporte']
-        if not all(column in data.columns for column in required_columns):
-            return jsonify({
-                "error": f"El archivo debe contener las columnas: {required_columns}"
-            }), 400
+        pedidos = Pedido.query.filter_by(solicitante=client_id).all()
+        if not pedidos:
+            return jsonify({"error": "No hay datos para este cliente"}), 404
 
-        # Eliminar filas con valores nulos en las columnas requeridas
-        data = data.dropna(subset=required_columns)
+        summary = {}
+        for p in pedidos:
+            fecha = p.fecha_entrega.strftime('%Y-%m-%d') if p.fecha_entrega else "Desconocido"
+            clave = (fecha, p.texto_breve_material)
+            if clave not in summary:
+                summary[clave] = {"Total Entregado": 0, "Total Viajes": 0}
+            summary[clave]["Total Entregado"] += p.cantidad_entrega
+            summary[clave]["Total Viajes"] += 1  # Contar viajes
 
-        # Reemplazar valores nulos en otras columnas
-        data['Cantidad entrega'] = data['Cantidad entrega'].fillna(0)
-        data['Nº de transporte'] = data['Nº de transporte'].fillna(0)
-
-        # Procesar los datos agrupados por fecha y producto
-        summary = data.groupby(['Fecha Entrega', 'Texto breve de material']).agg({
-            'Cantidad entrega': 'sum',
-            'Nº de transporte': 'count'
-        }).reset_index()
-
-        # Renombrar columnas para mayor claridad
-        summary.rename(columns={
-            'Fecha Entrega': 'Fecha',
-            'Texto breve de material': 'Producto',
-            'Cantidad entrega': 'Total Entregado',
-            'Nº de transporte': 'Total Viajes'
-        }, inplace=True)
-
-        # Convertir fechas a formato ISO para garantizar compatibilidad con Flutter
-        summary['Fecha'] = pd.to_datetime(summary['Fecha']).dt.strftime('%Y-%m-%d')
-
-        # Convertir el resultado a JSON
-        result = summary.to_dict(orient='records')
-
+        result = [{"Fecha": k[0], "Producto": k[1], "Total Entregado": v["Total Entregado"], "Total Viajes": v["Total Viajes"]} for k, v in summary.items()]
         return jsonify(result), 200
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

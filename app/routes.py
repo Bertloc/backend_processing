@@ -458,7 +458,7 @@ def get_all_clients():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@api.route('/client-login', methods=['POST'])
+@api.route('/api/client-login', methods=['POST'])
 def client_login():
     try:
         data = request.get_json()

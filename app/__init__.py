@@ -39,6 +39,7 @@ def create_app():
 
     # Registrar rutas
     from app.routes import api
+    app.register_blueprint(api)
     app.register_blueprint(api, url_prefix="/api")
 
     # Middleware para aplicar encabezados CORS dinámicamente

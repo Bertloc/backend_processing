@@ -463,13 +463,13 @@ def client_login():
     try:
         data = request.get_json()
         client_id = data.get("clientId")
-        
+
         if not client_id:
             return jsonify({"success": False, "message": "ID de Solicitante requerido"}), 400
 
         # Verificar si el cliente existe en la base de datos
         client_exists = db.session.query(Pedido).filter_by(solicitante=client_id).first()
-        
+
         if client_exists:
             return jsonify({"success": True, "solicitante": client_id})
         else:

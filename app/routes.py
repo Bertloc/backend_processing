@@ -458,7 +458,7 @@ def get_all_clients():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@api.route('/api/client-login', methods=['POST'])
+@api.route('/client-login', methods=['POST'])
 def client_login():
     try:
         data = request.get_json()
@@ -467,8 +467,8 @@ def client_login():
         if not client_id:
             return jsonify({"success": False, "message": "ID de Solicitante requerido"}), 400
 
-        # Verificar si el cliente existe en la base de datos
-        client_exists = db.session.query(Pedido).filter_by(solicitante=client_id).first()
+        # ✅ VERIFICAR SI EXISTE EL CLIENTE EN LA BASE DE DATOS (NO SOLO EN PEDIDOS)
+        client_exists = db.session.query(Pedido.solicitante).filter(Pedido.solicitante == client_id).distinct().first()
 
         if client_exists:
             return jsonify({"success": True, "solicitante": client_id})
@@ -477,3 +477,4 @@ def client_login():
 
     except Exception as e:
         return jsonify({"success": False, "message": "Error en la autenticación", "error": str(e)}), 500
+

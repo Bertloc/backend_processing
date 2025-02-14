@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from sqlalchemy import func, case
 import pandas as pd
 import uuid
 from app import db
@@ -65,9 +66,6 @@ def publish_data():
         db.session.rollback()
         print(f"❌ Error al procesar la solicitud: {str(e)}")
         return jsonify({'error': str(e)}), 500
-
-
-
 
 # Endpoint para obtener el rol de un usuario por ID
 @api.route('/get-user-role', methods=['GET'])
@@ -173,32 +171,38 @@ def process_file():
         return jsonify({"error": str(e)}), 500
 
 # ✅ Cumplimiento General
-@api.route('/compliance-summary', methods=['GET'])
+@api.route('/api/compliance-summary', methods=['GET'])
 def compliance_summary():
     try:
         client_id = request.args.get('client_id')
         if not client_id:
             return jsonify({"error": "El client_id es requerido"}), 400
 
-        pedidos = Pedido.query.filter_by(solicitante=client_id).all()
-        if not pedidos:
+        # Optimizar la consulta sumando directamente en la base de datos
+        compliance_data = db.session.query(
+            func.sum(case((Pedido.estatus_pedido == 'Despachado', Pedido.cantidad_pedido), else_=0)).label("Despachado"),
+            func.sum(case((Pedido.estatus_pedido == 'Programado', Pedido.cantidad_pedido), else_=0)).label("Programado"),
+            func.sum(case((Pedido.estatus_pedido == 'Confirmado', Pedido.cantidad_pedido), else_=0)).label("Confirmado"),
+            func.sum(case((Pedido.estatus_pedido == 'No confirmado', Pedido.cantidad_pedido), else_=0)).label("No_confirmado")
+        ).filter(
+            Pedido.solicitante == client_id
+        ).first()
+
+        if not compliance_data:
             return jsonify({"error": "No hay datos para este cliente"}), 404
 
-        delivered = sum(p.cantidad_pedido for p in pedidos if p.estatus_pedido == 'Despachado')
-        pending = sum(p.cantidad_pedido for p in pedidos if p.estatus_pedido == 'Programado')
-        confirmed = sum(p.cantidad_pedido for p in pedidos if p.estatus_pedido == 'Confirmado')
-        unconfirmed = sum(p.cantidad_pedido for p in pedidos if p.estatus_pedido == 'No confirmado')
-
+        # Convertir los resultados en JSON
         result = {
-            "Despachado": delivered,
-            "Programado": pending,
-            "Confirmado": confirmed,
-            "No confirmado": unconfirmed
+            "Despachado": compliance_data.Despachado or 0,
+            "Programado": compliance_data.Programado or 0,
+            "Confirmado": compliance_data.Confirmado or 0,
+            "No confirmado": compliance_data.No_confirmado or 0
         }
+        
         return jsonify(result), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 
 @api.route('/api/get-client-data/<int:client_id>', methods=['GET'])
@@ -357,12 +361,22 @@ def pending_orders():
         if not client_id:
             return jsonify({"error": "El client_id es requerido"}), 400
 
-        pedidos = Pedido.query.filter_by(solicitante=client_id, estatus_pedido='Pendiente').all()
+        # Agrupar pedidos pendientes por Material y sumar la Cantidad Confirmada
+        pedidos = db.session.query(
+            Pedido.material,
+            func.sum(Pedido.cantidad_confirmada).label("Cantidad_confirmada")
+        ).filter(
+            Pedido.solicitante == client_id,
+            Pedido.estatus_pedido == 'Pendiente'
+        ).group_by(Pedido.material).all()
+
         if not pedidos:
             return jsonify({"error": "No hay pedidos pendientes para este cliente"}), 404
 
-        result = [{"Material": p.material, "Cantidad confirmada": p.cantidad_confirmada} for p in pedidos]
+        # Convertir los resultados en un JSON válido
+        result = [{"Material": p.material, "Cantidad confirmada": p.Cantidad_confirmada} for p in pedidos]
         return jsonify(result), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

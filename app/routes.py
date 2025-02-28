@@ -1,4 +1,30 @@
 from flask import Blueprint, request, jsonify
+"""
+This module defines the API routes for the backend processing application using Flask.
+It includes endpoints for publishing data, user authentication, and various data retrieval operations.
+Routes:
+- /api/publish-data: Publishes data from an uploaded Excel file to the database.
+- /get-user-role: Retrieves the role of a user by their ID.
+- /login: Authenticates a user and returns their role.
+- /register: Registers a new user.
+- /api/publish-dashboards: Publishes dashboards for a list of clients.
+- /upload: Processes an uploaded Excel file and stores unique clients.
+- /compliance-summary: Provides a compliance summary for a client.
+- /api/get-client-data/<int:client_id>: Retrieves data for a specific client.
+- /api/daily-trend: Provides daily trend data for a client.
+- /api/monthly-product-allocation: Provides monthly product allocation data for a client.
+- /api/report-delivery-trends: Provides delivery trends data for a client.
+- /api/delivery-report: Provides a delivery report for a client.
+- /api/distribution-by-center: Provides distribution data by center for a client.
+- /api/daily-summary: Provides a daily summary for a client.
+- /api/pending-orders: Retrieves pending orders for a client.
+- /api/product-category-summary: Provides a product category summary for a client.
+- /api/daily-delivery-report: Provides a daily delivery report for a client.
+- /api/get-client-orders/<solicitante>: Retrieves orders for a specific client.
+- /api/get-all-clients: Retrieves a list of all clients.
+- /api/client-login: Authenticates a client by their ID.
+Each route handles specific data processing and retrieval tasks, interacting with the database as needed.
+"""
 import pandas as pd
 import uuid
 from app import db
@@ -458,6 +484,8 @@ def get_all_clients():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
 @api.route('/api/client-login', methods=['POST'])
 def client_login():
     try:
@@ -467,8 +495,8 @@ def client_login():
         if not client_id:
             return jsonify({"success": False, "message": "ID de Solicitante requerido"}), 400
 
-        # Convertir a entero si es numérico
-        client_id = int(client_id) if client_id.isdigit() else client_id
+        # Convertir a string para que coincida con el tipo en la base de datos
+        client_id = str(client_id)
 
         # Verificar si el cliente existe en la BD
         client_exists = db.session.query(Pedido.solicitante).filter(Pedido.solicitante == client_id).distinct().scalar()
@@ -480,6 +508,5 @@ def client_login():
 
     except Exception as e:
         return jsonify({"success": False, "message": "Error en la autenticación", "error": str(e)}), 500
-
 
 

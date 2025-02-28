@@ -467,8 +467,11 @@ def client_login():
         if not client_id:
             return jsonify({"success": False, "message": "ID de Solicitante requerido"}), 400
 
-        # ✅ VERIFICAR SI EXISTE EL CLIENTE EN LA BASE DE DATOS (NO SOLO EN PEDIDOS)
-        client_exists = db.session.query(Pedido.solicitante).filter(Pedido.solicitante == client_id).distinct().first()
+        # Convertir a entero si es numérico
+        client_id = int(client_id) if client_id.isdigit() else client_id
+
+        # Verificar si el cliente existe en la BD
+        client_exists = db.session.query(Pedido.solicitante).filter(Pedido.solicitante == client_id).distinct().scalar()
 
         if client_exists:
             return jsonify({"success": True, "solicitante": client_id})
@@ -477,4 +480,6 @@ def client_login():
 
     except Exception as e:
         return jsonify({"success": False, "message": "Error en la autenticación", "error": str(e)}), 500
+
+
 

@@ -13,6 +13,8 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000",
 ]
 
+CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}})
+
 def create_app():
     app = Flask(__name__)
 
